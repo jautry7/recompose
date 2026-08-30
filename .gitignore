@@ -1,0 +1,28 @@
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+Icon?
+.Spotlight-V100
+.Trashes
+.fseventsd
+*.icloud
+
+# Xcode and Swift build state
+DerivedData/
+build/
+.build/
+xcuserdata/
+*.xcuserstate
+*.xccheckout
+*.xcscmblueprint
+.swiftpm/xcode/package.xcworkspace/xcuserdata/
+
+# Compiler products
+*.o
+*.dSYM/
+
+# Compiled and extracted asset-catalog material belongs outside this repository.
+*.car
+*.dataRep
+
