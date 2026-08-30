@@ -57,3 +57,7 @@ Vector layers are serialized from Core Graphics SVG documents with Apple's SVG w
 Image Capture provided a second case with a different catalog profile: its appearance stacks use macOS Aqua names, it mixes vector and non-square raster source layers, and one layer uses Core Graphics blend mode 27. Normalizing those appearances, deriving authored scale from each raster's intrinsic dimensions, and translating blend mode 27 to `plus-lighter` produced an editable document that opened cleanly and was broadly recognizable in all three appearances.
 
 Closer comparison identified metadata that had not yet been translated. The production arrow used a softer liquid-glass treatment without the reconstructed version's dark border. The reconstructed arrow became darker in Dark mode while the production arrow remained light, and the reconstructed outer background was lighter in Default mode even though the production background appeared consistent between Default and Dark. Mono otherwise followed the expected composition apart from the same glass treatment.
+
+### Group material refinements
+
+The manifest showed group blur strength and an explicit `hasSpecular` state that the first Image Capture document had ignored. Nonzero blur strength now becomes Icon Composer's `blur-material` value, while groups with `hasSpecular` disabled emit `specular: "none"` instead of interpreting their placement value as an active automatic highlight. The second Image Capture reconstruction incorporated both corrections.

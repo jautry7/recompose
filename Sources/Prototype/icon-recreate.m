@@ -129,6 +129,16 @@ static NSString *SpecularPlacement(NSNumber *raw) {
     }
 }
 
+static NSString *SpecularValue(NSDictionary *group) {
+    if (![group[@"hasSpecular"] boolValue]) return @"none";
+    return SpecularPlacement(group[@"specularPlacement"]);
+}
+
+static NSNumber *BlurMaterialValue(NSDictionary *group) {
+    double strength = [group[@"blurStrength"] doubleValue];
+    return strength == 0.0 ? nil : @(strength);
+}
+
 static NSString *BlendMode(NSNumber *raw) {
     switch (raw.integerValue) {
         case 0: return @"normal";
@@ -231,8 +241,10 @@ static NSDictionary *GroupValue(NSDictionary *base,
     AddSpecializable(group, @"shadow", ShadowValue(base), ShadowValue(dark), ShadowValue(tinted));
     AddSpecializable(group, @"translucency", TranslucencyValue(base),
                      TranslucencyValue(dark), TranslucencyValue(tinted));
-    AddSpecializable(group, @"specular", SpecularPlacement(base[@"specularPlacement"]),
-                     SpecularPlacement(dark[@"specularPlacement"]), SpecularPlacement(tinted[@"specularPlacement"]));
+    AddSpecializable(group, @"blur-material", BlurMaterialValue(base),
+                     BlurMaterialValue(dark), BlurMaterialValue(tinted));
+    AddSpecializable(group, @"specular", SpecularValue(base),
+                     SpecularValue(dark), SpecularValue(tinted));
     AddSpecializable(group, @"lighting",
                      [base[@"gathersSpecularByElement"] boolValue] ? @"individual" : @"combined",
                      [dark[@"gathersSpecularByElement"] boolValue] ? @"individual" : @"combined",
