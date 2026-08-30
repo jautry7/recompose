@@ -10,7 +10,6 @@ Icon?
 
 # Xcode and Swift build state
 DerivedData/
-build/
 .build/
 xcuserdata/
 *.xcuserstate

@@ -1,4 +1,4 @@
-BUILD_DIR := ../Build
+BUILD_DIR := build
 SDK_PATH := $(shell xcrun --sdk macosx --show-sdk-path)
 CLANG := $(shell xcrun --find clang)
 OBJC_FLAGS := -fobjc-arc -fblocks -isysroot $(SDK_PATH)
