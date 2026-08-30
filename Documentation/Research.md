@@ -61,3 +61,7 @@ Closer comparison identified metadata that had not yet been translated. The prod
 ### Group material refinements
 
 The manifest showed group blur strength and an explicit `hasSpecular` state that the first Image Capture document had ignored. Nonzero blur strength now becomes Icon Composer's `blur-material` value, while groups with `hasSpecular` disabled emit `specular: "none"` instead of interpreting their placement value as an active automatic highlight. The second Image Capture reconstruction incorporated both corrections.
+
+### Current validation status
+
+The second Image Capture document opens cleanly and carries the additional group material metadata, but detailed comparison has not yet established complete rendering fidelity. Liquid-glass appearance remains the primary area for further investigation. The current prototype should therefore be treated as a successful structural reconstruction pipeline with known visual-validation work remaining, not as a finished pixel-identical decoder.
