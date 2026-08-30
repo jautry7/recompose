@@ -13,3 +13,9 @@ A focused catalog inspector then opened a supplied catalog through `CUICatalog`,
 ### Icon Composer runtime discovery
 
 A second runtime probe enumerated the classes and methods in Icon Composer's bundled foundation framework. The command-line utility bundled with Icon Composer could export a rendered image, which made it useful as a document-acceptance diagnostic, but it did not expose an operation for decoding or creating an editable document. Reconstruction therefore required learning the accepted document schema and writing it directly.
+
+### Schema candidate generation
+
+The first schema experiment generated progressively richer `.icon` packages from a known accepted document, extracted layer assets, and a preliminary reconstruction. Each candidate added a controlled portion of the recovered structure so Icon Composer's export result could act as a binary acceptance test.
+
+The generated documents and their copied artwork were retained as local research artifacts rather than repository fixtures.
