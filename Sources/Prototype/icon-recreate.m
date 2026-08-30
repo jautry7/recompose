@@ -189,7 +189,9 @@ static NSDictionary *GroupValue(NSDictionary *base,
     }
 
     NSMutableArray *layers = [NSMutableArray arrayWithCapacity:baseLayers.count];
-    for (NSUInteger index = 0; index < baseLayers.count; index++) {
+    // CoreUI's compiled stacks are back-to-front; Icon Composer documents list
+    // members front-to-back.
+    for (NSInteger index = (NSInteger)baseLayers.count - 1; index >= 0; index--) {
         NSDictionary *baseLayer = baseLayers[index];
         NSDictionary *darkLayer = darkLayers[index];
         NSDictionary *tintedLayer = tintedLayers[index];
@@ -277,7 +279,8 @@ int main(int argc, const char *argv[]) {
         }
 
         NSMutableArray *groups = [NSMutableArray array];
-        for (NSUInteger index = 1; index < lightRecords.count; index++) {
+        // CoreUI's compiled group order is the reverse of icon.json's authoring order.
+        for (NSInteger index = (NSInteger)lightRecords.count - 1; index >= 1; index--) {
             NSDictionary *baseGroup = lightRecords[index];
             NSDictionary *darkGroup = darkRecords[index];
             NSDictionary *tintedGroup = tintedRecords[index];

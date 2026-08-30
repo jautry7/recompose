@@ -35,3 +35,7 @@ The accepted representation is a position object containing a numeric `scale` an
 The first generated Maps document opened successfully in Icon Composer. It proved that the extracted layers and recovered rendering properties could be reassembled into a structurally valid editable document.
 
 Visual inspection exposed two related ordering problems. The four recovered groups appeared in descending order, and each group's layers were also emitted in compiled order. Large background shapes consequently covered colored foreground layers, making much of the icon appear black and white even though color metadata was present in the document.
+
+### Authored stacking order
+
+Reversing both arrays translated CoreUI's back-to-front compiled stacks into Icon Composer's front-to-back authoring order. The resulting second document restored the intended composition and revealed the expected full-color Default appearance.
