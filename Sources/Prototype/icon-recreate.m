@@ -39,7 +39,7 @@ static id FillValue(NSDictionary *record) {
     if (color) return @{ @"solid": ColorString(color) };
 
     NSDictionary *gradient = NullToNil(record[@"gradient"]);
-    if (!gradient) return nil;
+    if (!gradient) return @"none";
     NSArray *colors = gradient[@"colors"];
     if (colors.count != 2) {
         [NSException raise:@"UnsupportedGradient" format:@"Expected two gradient colors, found %lu",
@@ -55,10 +55,8 @@ static id FillValue(NSDictionary *record) {
 }
 
 static NSDictionary *Specialization(NSString *appearance, id value) {
-    return @{
-        @"slot": @{ @"appearance": appearance },
-        @"value": value ?: [NSNull null]
-    };
+    if (appearance) return @{ @"appearance": appearance, @"value": value ?: [NSNull null] };
+    return @{ @"value": value ?: [NSNull null] };
 }
 
 static BOOL Same(id a, id b) {
@@ -74,15 +72,18 @@ static void AddSpecializable(NSMutableDictionary *destination,
     base = NullToNil(base);
     dark = NullToNil(dark);
     tinted = NullToNil(tinted);
-    if (base) destination[key] = base;
     BOOL darkDiffers = !Same(base, dark);
-    BOOL tintedDiffers = !Same(base, tinted);
-    NSMutableArray *variants = [NSMutableArray array];
+    // Icon Composer's Mono/Tinted slot inherits the effective Dark value.
+    BOOL tintedDiffers = !Same(dark, tinted);
+    if (!darkDiffers && !tintedDiffers) {
+        if (base) destination[key] = base;
+        return;
+    }
+
+    NSMutableArray *variants = [NSMutableArray arrayWithObject:Specialization(nil, base)];
     if (darkDiffers) [variants addObject:Specialization(@"dark", dark)];
     if (tintedDiffers) [variants addObject:Specialization(@"tinted", tinted)];
-    if (variants.count > 0) {
-        destination[[key stringByAppendingString:@"-specializations"]] = variants;
-    }
+    destination[[key stringByAppendingString:@"-specializations"]] = variants;
 }
 
 static NSString *ShadowKind(NSNumber *raw) {
@@ -212,7 +213,7 @@ static NSDictionary *GroupValue(NSDictionary *base,
     AddSpecializable(group, @"shadow", ShadowValue(base), ShadowValue(dark), ShadowValue(tinted));
     AddSpecializable(group, @"translucency", TranslucencyValue(base),
                      TranslucencyValue(dark), TranslucencyValue(tinted));
-    AddSpecializable(group, @"specular-highlight-placement", SpecularPlacement(base[@"specularPlacement"]),
+    AddSpecializable(group, @"specular", SpecularPlacement(base[@"specularPlacement"]),
                      SpecularPlacement(dark[@"specularPlacement"]), SpecularPlacement(tinted[@"specularPlacement"]));
     AddSpecializable(group, @"lighting",
                      [base[@"gathersSpecularByElement"] boolValue] ? @"individual" : @"combined",
@@ -293,7 +294,7 @@ int main(int argc, const char *argv[]) {
         }
 
         NSMutableDictionary *icon = [@{
-            @"features": @[ @"refractivity" ],
+            @"features": @[ @"refractivity", @"specular-location" ],
             @"groups": groups,
             @"supported-platforms": @{ @"circles": @[ @"watchOS" ], @"squares": @"shared" }
         } mutableCopy];

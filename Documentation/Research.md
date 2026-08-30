@@ -39,3 +39,9 @@ Visual inspection exposed two related ordering problems. The four recovered grou
 ### Authored stacking order
 
 Reversing both arrays translated CoreUI's back-to-front compiled stacks into Icon Composer's front-to-back authoring order. The resulting second document restored the intended composition and revealed the expected full-color Default appearance.
+
+### Canonical appearance specializations
+
+The corrected Default appearance revealed that Dark and Mono still differed from the production icon. A document reserialized by Icon Composer showed that specializable properties use an ordered array whose first item contains only a default `value`; later items carry `appearance` and `value` as siblings. The earlier nested `slot` representation was accepted but did not reproduce the authored specialization behavior.
+
+The generator was updated to emit the canonical array, encode an absent fill as `"none"`, use the current `specular` property name, and model Mono/Tinted as inheriting the effective Dark value unless it supplies a distinct override. The third Maps reconstruction then matched the observed Default, Dark, and Mono compositions.
