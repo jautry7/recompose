@@ -45,3 +45,9 @@ Reversing both arrays translated CoreUI's back-to-front compiled stacks into Ico
 The corrected Default appearance revealed that Dark and Mono still differed from the production icon. A document reserialized by Icon Composer showed that specializable properties use an ordered array whose first item contains only a default `value`; later items carry `appearance` and `value` as siblings. The earlier nested `slot` representation was accepted but did not reproduce the authored specialization behavior.
 
 The generator was updated to emit the canonical array, encode an absent fill as `"none"`, use the current `specular` property name, and model Mono/Tinted as inheriting the effective Dark value unless it supplies a distinct override. The third Maps reconstruction then matched the observed Default, Dark, and Mono compositions.
+
+### Reusable CoreUI extraction
+
+The exploratory catalog code was consolidated into a reusable extractor. It requests Light, Dark, and Tintable stacks; normalizes macOS Aqua appearance names to those manifest roles; records group, layer, fill, frame, and rendition metadata; and preserves intrinsic raster dimensions.
+
+Vector layers are serialized from Core Graphics SVG documents with Apple's SVG writer. Raster layers are encoded as PNG with ImageIO. The output is a local manifest plus extracted source layers, which are deliberately excluded from this repository.
