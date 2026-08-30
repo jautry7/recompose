@@ -21,8 +21,3 @@ xcuserdata/
 # Compiler products
 *.o
 *.dSYM/
-
-# Compiled and extracted asset-catalog material belongs outside this repository.
-*.car
-*.dataRep
-
