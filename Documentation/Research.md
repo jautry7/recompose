@@ -29,3 +29,9 @@ A second generator added recovered group and layer properties one key at a time.
 ### Accepted position encoding
 
 The accepted representation is a position object containing a numeric `scale` and a two-element `translation-in-points` array. Encoding the translation as an object with named `x` and `y` members, or reducing the complete position to a vector array, was rejected. After converting the nested translation to `[x, y]`, both the full base document and the full document with specializations passed validation.
+
+### First editable Maps reconstruction
+
+The first generated Maps document opened successfully in Icon Composer. It proved that the extracted layers and recovered rendering properties could be reassembled into a structurally valid editable document.
+
+Visual inspection exposed two related ordering problems. The four recovered groups appeared in descending order, and each group's layers were also emitted in compiled order. Large background shapes consequently covered colored foreground layers, making much of the icon appear black and white even though color metadata was present in the document.
