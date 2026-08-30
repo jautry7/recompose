@@ -25,3 +25,7 @@ The known-good control, a single extracted layer, all extracted layers using the
 ### Key-by-key schema isolation
 
 A second generator added recovered group and layer properties one key at a time. Group name, opacity, specular placement, lighting, layer blend mode, glass, and fill all passed. Adding the recovered layer position was the only failing case, identifying its serialized shape as the malformed value.
+
+### Accepted position encoding
+
+The accepted representation is a position object containing a numeric `scale` and a two-element `translation-in-points` array. Encoding the translation as an object with named `x` and `y` members, or reducing the complete position to a vector array, was rejected. After converting the nested translation to `[x, y]`, both the full base document and the full document with specializations passed validation.
