@@ -19,3 +19,5 @@ A second runtime probe enumerated the classes and methods in Icon Composer's bun
 The first schema experiment generated progressively richer `.icon` packages from a known accepted document, extracted layer assets, and a preliminary reconstruction. Each candidate added a controlled portion of the recovered structure so Icon Composer's export result could act as a binary acceptance test.
 
 The generated documents and their copied artwork were retained as local research artifacts rather than repository fixtures.
+
+The known-good control, a single extracted layer, all extracted layers using the safe schema, and the recovered document restricted to known keys all passed validation. The candidates containing every recovered base key and the full appearance specializations both failed with Icon Composer's generic incorrect-format error. This localized the failure to one or more additional metadata encodings rather than the extracted assets or overall package structure.
