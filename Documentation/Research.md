@@ -21,3 +21,7 @@ The first schema experiment generated progressively richer `.icon` packages from
 The generated documents and their copied artwork were retained as local research artifacts rather than repository fixtures.
 
 The known-good control, a single extracted layer, all extracted layers using the safe schema, and the recovered document restricted to known keys all passed validation. The candidates containing every recovered base key and the full appearance specializations both failed with Icon Composer's generic incorrect-format error. This localized the failure to one or more additional metadata encodings rather than the extracted assets or overall package structure.
+
+### Key-by-key schema isolation
+
+A second generator added recovered group and layer properties one key at a time. Group name, opacity, specular placement, lighting, layer blend mode, glass, and fill all passed. Adding the recovered layer position was the only failing case, identifying its serialized shape as the malformed value.
