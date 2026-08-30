@@ -133,6 +133,7 @@ static NSString *BlendMode(NSNumber *raw) {
     switch (raw.integerValue) {
         case 0: return @"normal";
         case 1: return @"multiply";
+        case 27: return @"plus-lighter";
         default:
             [NSException raise:@"UnsupportedBlendMode" format:@"Unsupported Core Graphics blend mode: %@", raw];
             return nil;
@@ -149,10 +150,27 @@ static NSDictionary *PositionValue(NSDictionary *layer) {
     double height = [size[@"height"] doubleValue];
     if (x == 0.0 && y == 0.0 && width == 1024.0 && height == 1024.0) return nil;
 
-    if (width != height) {
-        [NSException raise:@"UnsupportedFrame" format:@"Expected a square layer frame: %@", frame];
+    NSDictionary *imageSize = NullToNil(layer[@"imageSize"]);
+    double intrinsicWidth = imageSize ? [imageSize[@"width"] doubleValue] : 1024.0;
+    double intrinsicHeight = imageSize ? [imageSize[@"height"] doubleValue] : 1024.0;
+    if (intrinsicWidth <= 0.0 || intrinsicHeight <= 0.0) {
+        [NSException raise:@"InvalidImageSize" format:@"Invalid intrinsic image size: %@", imageSize];
     }
-    double scale = width / 1024.0;
+
+    // CoreUI stores integer layer frames, so a uniformly scaled non-square image
+    // can differ from its exact computed frame by as much as one point. Recover
+    // the authored scale from whichever dimension best predicts the other.
+    double widthScale = width / intrinsicWidth;
+    double heightScale = height / intrinsicHeight;
+    double widthScaleResidual = fabs(intrinsicHeight * widthScale - height);
+    double heightScaleResidual = fabs(intrinsicWidth * heightScale - width);
+    double scale = widthScaleResidual <= heightScaleResidual ? widthScale : heightScale;
+    double residual = MIN(widthScaleResidual, heightScaleResidual);
+    if (residual > 1.1) {
+        [NSException raise:@"UnsupportedFrame"
+                    format:@"Layer frame implies non-uniform scaling (frame %@, intrinsic %@)",
+         frame, imageSize ?: @{ @"width": @1024, @"height": @1024 }];
+    }
 
     double centerX = x + width / 2.0 - 512.0;
     double centerY = y + height / 2.0 - 512.0;

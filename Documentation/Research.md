@@ -51,3 +51,7 @@ The generator was updated to emit the canonical array, encode an absent fill as 
 The exploratory catalog code was consolidated into a reusable extractor. It requests Light, Dark, and Tintable stacks; normalizes macOS Aqua appearance names to those manifest roles; records group, layer, fill, frame, and rendition metadata; and preserves intrinsic raster dimensions.
 
 Vector layers are serialized from Core Graphics SVG documents with Apple's SVG writer. Raster layers are encoded as PNG with ImageIO. The output is a local manifest plus extracted source layers, which are deliberately excluded from this repository.
+
+### First reconstruction from a macOS-only app
+
+Image Capture provided a second case with a different catalog profile: its appearance stacks use macOS Aqua names, it mixes vector and non-square raster source layers, and one layer uses Core Graphics blend mode 27. Normalizing those appearances, deriving authored scale from each raster's intrinsic dimensions, and translating blend mode 27 to `plus-lighter` produced an editable document that opened cleanly and was broadly recognizable in all three appearances.
