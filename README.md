@@ -14,7 +14,8 @@ Download the [0.1.0 alpha](https://github.com/jautry7/recompose/releases/latest)
 
 The project is still an early prototype. Current known issues include:
 
-- "AppIcon" is currently the only supported asset. Support for arbitrarily named `IconImageStack` assets is WIP.
-- Reconstruction pipeline is still being refined. Minor details in recomposed icon may not perfectly match the original rendering.
+- Xcode's default icon name ("AppIcon") is currently the only supported asset. Support for arbitrarily named `IconImageStack` assets is WIP.
+  - The generated `.icns` file contained in the app's Resources folder, alongside `Assets.car`, typically inherits the name of the icon asset that is bundled into the asset catalog. From this you can tell whether that app's asset catalog is likely to be compatible with Recompose; if it's named anything other than `AppIcon`, the icon asset likely won't be recognized.
+- The icon reconstruction pipeline is still being refined. Minor details in the recomposed icon may not perfectly match the original rendering. During testing, Mac Catalyst apps (Maps, Home, Stocks, etc) typically recompose best.
 - Recompose was developed and tested on macOS Golden Gate 27 beta; it is technically compatible with macOS Tahoe 26, but reconstruction results are unknown and untested.
-- The frontend is currently a wrapper for bundled command-line helpers. Building the reconstruction pipeline into the app directly is the end goal.
+- The app UI is currently a wrapper for bundled command-line helpers. Building the reconstruction pipeline into the app directly is the end goal.
