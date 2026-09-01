@@ -15,6 +15,7 @@
 - `RecompositionEngine.swift` is currently an orchestration wrapper around the bundled command-line helpers; it is not the reconstruction engine itself.
 - Preserve the working extraction and reconstruction implementation in Objective-C. Do not rewrite or substantially refactor that pipeline in Swift.
 - The intended long-term engine is an Objective-C `RecomposeCore` integrated with the Xcode project and shipped inside the app bundle. The helper executables are internal implementation details, not peer products that must be distributed separately from the app.
+- The current helper binaries are arm64-only, but the end goal is for `RecomposeCore` and the app to support a universal binary so Recompose can be built and tested on Intel Macs running macOS 26 Tahoe as well as Apple silicon Macs.
 - Leave the current `cli/` organization and names in place unless an architectural change is explicitly requested. Public CLI support can be evaluated later.
 - The prebuilt CLI binaries may remain committed to the public repository as release-like artifacts.
 
