@@ -1,7 +1,17 @@
 # Recompose
 
-Recompose is an experimental macOS project for reconstructing editable Icon Composer documents (`.icon`) from compiled asset catalogs.
+Recompose is an experimental macOS app that reconstructs editable Icon Composer `.icon` documents from compiled asset catalogs.
 
-The current prototype is CLI only (availabile in `/cli/builds`) and reads icon-layer stacks through Apple's CoreUI runtime, exports their source layers with Apple frameworks, and translates the recovered rendering metadata into Icon Composer's document schema.
+Drop in an `Assets.car` file and Recompose will identify its AppIcon, recover the underlying layer stack and rendering annotations, and save it as an editable `.icon` document.
 
-The prototype was developed against macOS 27 beta, Xcode 27 beta, and Icon Composer 2. It uses private CoreUI interfaces and an undocumented Core Graphics SVG serializer, so compatibility must be revalidated for each system release.
+Recompose relies on private CoreUI interfaces and undocumented Apple behavior, so results may vary between macOS releases.
+
+## Known issues
+
+The project is still an early prototype. Current known issues include:
+
+- "AppIcon" is currently the only supported asset. Support for arbitrarily named `IconImageStack` assets is WIP.
+- Reconstruction pipeline is still being refined. Minor details in recomposed icon may not perfectly match the original rendering.
+- Recompose was developed and tested on macOS Golden Gate 27 beta; it is technically compatible with macOS Tahoe 26, but reconstruction results are unknown and untested.
+- The frontend is currently a wrapper for bundled command-line helpers. Building the reconstruction pipeline into the app directly is the end goal.
+
