@@ -8,7 +8,7 @@ Recompose relies on private CoreUI interfaces and undocumented Apple behavior, s
 
 ## Download
 
-Download the latest release here on GitHub: https://github.com/jautry7/recompose/releases/latest
+Download the [0.1.0 alpha](https://github.com/jautry7/recompose/releases/latest)
 
 ## Known issues
 
