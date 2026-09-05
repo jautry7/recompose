@@ -146,14 +146,18 @@ static NSNumber *BlurMaterialValue(NSDictionary *group) {
 }
 
 static NSString *BlendMode(NSNumber *raw) {
+    // Map the complete set exposed by Icon Composer's Blend Mode inspector.
+    // Core Graphics defines additional modes that the .icon format cannot use.
     switch (raw.integerValue) {
         case 0: return @"normal";
         case 1: return @"multiply";
         case 2: return @"screen";
         case 3: return @"overlay";
+        case 4: return @"darken";
         case 5: return @"lighten";
         case 8: return @"soft-light";
         case 9: return @"hard-light";
+        case 26: return @"plus-darker";
         case 27: return @"plus-lighter";
         default:
             [NSException raise:@"UnsupportedBlendMode" format:@"Unsupported Core Graphics blend mode: %@", raw];
