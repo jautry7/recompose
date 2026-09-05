@@ -313,7 +313,7 @@
 		2E412A9F3044CAE500F2B984 /* Debug configuration for PBXNativeTarget "Recompose" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = "recompose-new-solid";
+				ASSETCATALOG_COMPILER_APPICON_NAME = "recompose-new";
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_STYLE = Automatic;
@@ -344,7 +344,7 @@
 		2E412AA03044CAE500F2B984 /* Release configuration for PBXNativeTarget "Recompose" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = "recompose-new-solid";
+				ASSETCATALOG_COMPILER_APPICON_NAME = "recompose-new";
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_STYLE = Automatic;
