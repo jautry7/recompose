@@ -6,14 +6,23 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         case resting
         case hovering
         case processing
-        case success
+        case noIcon
+        case singleIcon(String)
+        case multipleIcons([String])
         case failure
+    }
+
+    private enum Layout {
+        static let assetLabelToDropdownSpacing: CGFloat = 6
     }
 
     private let dropZoneView = DropZoneView()
     private var contentView: NSView?
     private var restingSymbolView: NSImageView?
-    private var output: RecompositionOutput?
+    private var session: RecompositionSession?
+    private var outputs: [String: RecompositionOutput] = [:]
+    private var preparingNames: Set<String> = []
+    private var selectedIconName: String?
     private var state: State = .resting
 
     override func loadView() {
@@ -28,8 +37,8 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
     }
 
     deinit {
-        if let output {
-            RecompositionEngine.remove(output)
+        if let session {
+            RecompositionEngine.remove(session)
         }
     }
 
@@ -51,11 +60,12 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
     }
 
     private func beginProcessing(_ catalogURL: URL) {
+        clearSession()
         render(.processing)
         let didAccess = catalogURL.startAccessingSecurityScopedResource()
 
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            let result = Result { try RecompositionEngine.recompose(catalogURL: catalogURL) }
+            let result = Result { try RecompositionEngine.inspect(catalogURL: catalogURL) }
             if didAccess {
                 catalogURL.stopAccessingSecurityScopedResource()
             }
@@ -63,14 +73,79 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
             DispatchQueue.main.async {
                 guard let self else { return }
                 switch result {
-                case .success(let output):
-                    self.output = output
-                    self.render(.success)
+                case .success(let session):
+                    self.session = session
+                    self.present(session)
                 case .failure(let error):
-                    NSLog("Recomposition failed: %@", error.localizedDescription)
+                    NSLog("Catalog inspection failed: %@", error.localizedDescription)
                     self.render(.failure)
                 }
             }
+        }
+    }
+
+    private func present(_ session: RecompositionSession) {
+        switch session.iconNames.count {
+        case 0:
+            render(.noIcon)
+        case 1:
+            let name = session.iconNames[0]
+            selectedIconName = name
+            prepareIcon(named: name, in: session)
+        default:
+            let name = session.iconNames.contains("AppIcon")
+                ? "AppIcon"
+                : session.iconNames[0]
+            selectedIconName = name
+            render(.multipleIcons(session.iconNames))
+            prepareIcon(named: name, in: session)
+        }
+    }
+
+    private func prepareIcon(named name: String, in session: RecompositionSession) {
+        if outputs[name] != nil {
+            showCompletedSelection(in: session)
+            return
+        }
+        guard !preparingNames.contains(name) else { return }
+
+        preparingNames.insert(name)
+        if session.iconNames.count == 1 {
+            render(.processing)
+        } else {
+            render(.multipleIcons(session.iconNames))
+        }
+
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let result = Result {
+                try RecompositionEngine.recompose(session: session, assetName: name)
+            }
+
+            DispatchQueue.main.async {
+                guard let self, self.session?.id == session.id else { return }
+                self.preparingNames.remove(name)
+                switch result {
+                case .success(let output):
+                    self.outputs[name] = output
+                    if self.selectedIconName == name {
+                        self.showCompletedSelection(in: session)
+                    }
+                case .failure(let error):
+                    NSLog("Recomposition failed for %@: %@", name, error.localizedDescription)
+                    if self.selectedIconName == name {
+                        self.render(.failure)
+                    }
+                }
+            }
+        }
+    }
+
+    private func showCompletedSelection(in session: RecompositionSession) {
+        guard let selectedIconName else { return }
+        if session.iconNames.count == 1 {
+            render(.singleIcon(selectedIconName))
+        } else {
+            render(.multipleIcons(session.iconNames))
         }
     }
 
@@ -89,19 +164,29 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
             replacement = makeDropPrompt(isHovering: true)
         case .processing:
             replacement = makeProcessingView()
-        case .success:
+        case .noIcon:
+            replacement = makeResultView(
+                symbolName: "xmark.circle",
+                symbolColor: .tertiaryLabelColor,
+                title: "No icon found",
+                message: "This asset catalog does not appear to\ncontain an IconImageStack",
+                showsSaveButton: false
+            )
+        case .singleIcon(let name):
             replacement = makeResultView(
                 symbolName: "checkmark.circle",
                 symbolColor: .systemGreen,
                 title: "Icon recomposed",
-                message: "Identified asset name: AppIcon",
+                message: "Identified asset name: \(name)",
                 showsSaveButton: true
             )
+        case .multipleIcons(let names):
+            replacement = makeMultipleIconView(names: names)
         case .failure:
             replacement = makeResultView(
                 symbolName: "xmark.circle",
                 symbolColor: .systemRed,
-                title: "Could not recompose icon",
+                title: "Could not process CAR file",
                 message: "Please check Console for logs",
                 showsSaveButton: false
             )
@@ -202,15 +287,66 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         )
         let titleLabel = makeLabel(title, size: 17, weight: .semibold, color: .labelColor)
         let messageLabel = makeLabel(message, size: 13, weight: .regular, color: .secondaryLabelColor)
+        messageLabel.maximumNumberOfLines = 2
 
+        let buttonRow = makeButtonRow(showsSaveButton: showsSaveButton)
+        let stack = NSStackView(views: [symbol, titleLabel, messageLabel, buttonRow])
+        configureResultStack(stack, messageView: messageLabel, in: container)
+        constrainResultSymbol(symbol)
+        return container
+    }
+
+    private func makeMultipleIconView(names: [String]) -> NSView {
+        let container = NSView()
+        let symbol = makeSymbolView(
+            named: "checkmark.circle",
+            pointSize: 72,
+            weight: .thin,
+            color: .systemGreen,
+            accessibilityDescription: "Multiple icons identified"
+        )
+        let titleLabel = makeLabel(
+            "Multiple icons identified",
+            size: 17,
+            weight: .semibold,
+            color: .labelColor
+        )
+        let promptLabel = makeLabel(
+            "Choose an asset:",
+            size: 13,
+            weight: .regular,
+            color: .secondaryLabelColor
+        )
+        let popup = NSPopUpButton(frame: .zero, pullsDown: false)
+        // AppKit calls the UI kit's medium control size "regular".
+        popup.controlSize = .regular
+        popup.addItems(withTitles: names)
+        popup.selectItem(withTitle: selectedIconName ?? names[0])
+        popup.target = self
+        popup.action = #selector(selectIcon(_:))
+
+        let selectionRow = NSStackView(views: [promptLabel, popup])
+        selectionRow.orientation = .horizontal
+        selectionRow.alignment = .centerY
+        selectionRow.spacing = Layout.assetLabelToDropdownSpacing
+
+        let buttonRow = makeButtonRow(showsSaveButton: true)
+        let stack = NSStackView(views: [symbol, titleLabel, selectionRow, buttonRow])
+        configureResultStack(stack, messageView: selectionRow, in: container)
+        constrainResultSymbol(symbol)
+        return container
+    }
+
+    private func makeButtonRow(showsSaveButton: Bool) -> NSStackView {
         let backButton = NSButton(title: "Back", target: self, action: #selector(goBack))
         configureButton(backButton)
         var buttons = [backButton]
 
         if showsSaveButton {
-            let saveButton = NSButton(title: "Save Icon", target: self, action: #selector(saveIcon))
+            let saveButton = NSButton(title: "Save icon", target: self, action: #selector(saveIcon))
             configureButton(saveButton)
             saveButton.keyEquivalent = "\r"
+            saveButton.isEnabled = selectedIconName.flatMap { outputs[$0] } != nil
             buttons.append(saveButton)
         }
 
@@ -218,23 +354,31 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         buttonRow.orientation = .horizontal
         buttonRow.alignment = .centerY
         buttonRow.spacing = 8
+        return buttonRow
+    }
 
-        let stack = NSStackView(views: [symbol, titleLabel, messageLabel, buttonRow])
+    private func configureResultStack(
+        _ stack: NSStackView,
+        messageView: NSView,
+        in container: NSView
+    ) {
         stack.orientation = .vertical
         stack.alignment = .centerX
         stack.spacing = 6
-        stack.setCustomSpacing(24, after: messageLabel)
+        stack.setCustomSpacing(24, after: messageView)
         stack.translatesAutoresizingMaskIntoConstraints = false
         container.addSubview(stack)
-
         NSLayoutConstraint.activate([
-            symbol.widthAnchor.constraint(equalToConstant: 86),
-            symbol.heightAnchor.constraint(equalToConstant: 86),
             stack.centerXAnchor.constraint(equalTo: container.centerXAnchor),
             stack.centerYAnchor.constraint(equalTo: container.centerYAnchor, constant: -8)
         ])
+    }
 
-        return container
+    private func constrainResultSymbol(_ symbol: NSImageView) {
+        NSLayoutConstraint.activate([
+            symbol.widthAnchor.constraint(equalToConstant: 86),
+            symbol.heightAnchor.constraint(equalToConstant: 86)
+        ])
     }
 
     private func makeSymbolView(
@@ -278,20 +422,36 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         button.font = .systemFont(ofSize: 13)
     }
 
-    @objc private func goBack() {
-        if let output {
-            RecompositionEngine.remove(output)
-            self.output = nil
+    private func clearSession() {
+        if let session {
+            RecompositionEngine.remove(session)
         }
+        session = nil
+        outputs.removeAll()
+        preparingNames.removeAll()
+        selectedIconName = nil
+    }
+
+    @objc private func goBack() {
+        clearSession()
         render(.resting)
     }
 
+    @objc private func selectIcon(_ sender: NSPopUpButton) {
+        guard let session, let name = sender.selectedItem?.title else { return }
+        selectedIconName = name
+        render(.multipleIcons(session.iconNames))
+        prepareIcon(named: name, in: session)
+    }
+
     @objc private func saveIcon() {
-        guard let output, let window = view.window else { return }
+        guard let selectedIconName,
+              let output = outputs[selectedIconName],
+              let window = view.window else { return }
 
         let panel = NSSavePanel()
         panel.title = "Save Reconstructed Icon"
-        panel.nameFieldStringValue = "AppIcon-recomposed.icon"
+        panel.nameFieldStringValue = "\(safeFilename(selectedIconName))-recomposed.icon"
         panel.directoryURL = FileManager.default.urls(for: .desktopDirectory, in: .userDomainMask).first
         panel.canCreateDirectories = true
         panel.isExtensionHidden = false
@@ -299,7 +459,7 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
             panel.allowedContentTypes = [iconType]
         }
 
-        panel.beginSheetModal(for: window) { [weak self] response in
+        panel.beginSheetModal(for: window) { response in
             guard response == .OK, let destinationURL = panel.url else { return }
             do {
                 let fileManager = FileManager.default
@@ -309,8 +469,14 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
                 try fileManager.copyItem(at: output.iconURL, to: destinationURL)
             } catch {
                 NSLog("Saving recomposed icon failed: %@", error.localizedDescription)
-                self?.render(.failure)
             }
         }
+    }
+
+    private func safeFilename(_ name: String) -> String {
+        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "._-"))
+        let sanitized = name.unicodeScalars.map { allowed.contains($0) ? Character(String($0)) : "_" }
+        let result = String(sanitized)
+        return result.isEmpty ? "icon" : result
     }
 }

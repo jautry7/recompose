@@ -7,27 +7,34 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		2E412AA13044D00000F2B984 /* coreui-icon-extract in Copy CLI Helpers */ = {isa = PBXBuildFile; fileRef = 2E412AA43044D00000F2B984 /* coreui-icon-extract */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
-		2E412AA23044D00000F2B984 /* icon-recreate in Copy CLI Helpers */ = {isa = PBXBuildFile; fileRef = 2E412AA53044D00000F2B984 /* icon-recreate */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		2E412AB03044D00000F2B984 /* recompose in Embed CLI */ = {isa = PBXBuildFile; fileRef = 2E412AB13044D00000F2B984 /* recompose */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		2E412AB93044D00000F2B984 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 2E412A8B3044CAE500F2B984 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 2E412AB53044D00000F2B984;
+			remoteInfo = "Recompose CLI";
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXCopyFilesBuildPhase section */
-		2E412AA33044D00000F2B984 /* Copy CLI Helpers */ = {
+		2E412AA33044D00000F2B984 /* Embed CLI */ = {
 			isa = PBXCopyFilesBuildPhase;
-			dstPath = "";
-			dstSubfolder = Executables;
+			dstPath = Contents/Helpers;
+			dstSubfolder = Wrapper;
 			files = (
-				2E412AA13044D00000F2B984 /* coreui-icon-extract in Copy CLI Helpers */,
-				2E412AA23044D00000F2B984 /* icon-recreate in Copy CLI Helpers */,
+				2E412AB03044D00000F2B984 /* recompose in Embed CLI */,
 			);
-			name = "Copy CLI Helpers";
+			name = "Embed CLI";
 		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		2E412A933044CAE500F2B984 /* Recompose.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Recompose.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		2E412AA43044D00000F2B984 /* coreui-icon-extract */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; path = "coreui-icon-extract"; sourceTree = "<group>"; };
-		2E412AA53044D00000F2B984 /* icon-recreate */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; path = "icon-recreate"; sourceTree = "<group>"; };
+		2E412AB13044D00000F2B984 /* recompose */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = recompose; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -36,10 +43,20 @@
 			path = Recompose;
 			sourceTree = "<group>";
 		};
+		2E412AB23044D00000F2B984 /* RecomposeCLI */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = RecomposeCLI;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		2E412A903044CAE500F2B984 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
+			);
+		};
+		2E412AB33044D00000F2B984 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			files = (
 			);
@@ -51,7 +68,7 @@
 			isa = PBXGroup;
 			children = (
 				2E412A953044CAE500F2B984 /* Recompose */,
-				2E412AA63044D00000F2B984 /* CLI Helpers */,
+				2E412AB23044D00000F2B984 /* RecomposeCLI */,
 				2E412A943044CAE500F2B984 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -60,19 +77,10 @@
 			isa = PBXGroup;
 			children = (
 				2E412A933044CAE500F2B984 /* Recompose.app */,
+				2E412AB13044D00000F2B984 /* recompose */,
 			);
 			name = Products;
 			sourceTree = "<group>";
-		};
-		2E412AA63044D00000F2B984 /* CLI Helpers */ = {
-			isa = PBXGroup;
-			children = (
-				2E412AA43044D00000F2B984 /* coreui-icon-extract */,
-				2E412AA53044D00000F2B984 /* icon-recreate */,
-			);
-			name = "CLI Helpers";
-			path = cli/build;
-			sourceTree = SOURCE_ROOT;
 		};
 /* End PBXGroup section */
 
@@ -84,9 +92,12 @@
 				2E412A8F3044CAE500F2B984 /* Sources */,
 				2E412A903044CAE500F2B984 /* Frameworks */,
 				2E412A913044CAE500F2B984 /* Resources */,
-				2E412AA33044D00000F2B984 /* Copy CLI Helpers */,
+				2E412AA33044D00000F2B984 /* Embed CLI */,
 			);
 			buildRules = (
+			);
+			dependencies = (
+				2E412ABA3044D00000F2B984 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				2E412A953044CAE500F2B984 /* Recompose */,
@@ -95,6 +106,23 @@
 			productName = Recompose;
 			productReference = 2E412A933044CAE500F2B984 /* Recompose.app */;
 			productType = "com.apple.product-type.application";
+		};
+		2E412AB53044D00000F2B984 /* Recompose CLI */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 2E412AB63044D00000F2B984 /* Build configuration list for PBXNativeTarget "Recompose CLI" */;
+			buildPhases = (
+				2E412AB43044D00000F2B984 /* Sources */,
+				2E412AB33044D00000F2B984 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			fileSystemSynchronizedGroups = (
+				2E412AB23044D00000F2B984 /* RecomposeCLI */,
+			);
+			name = "Recompose CLI";
+			productName = recompose;
+			productReference = 2E412AB13044D00000F2B984 /* recompose */;
+			productType = "com.apple.product-type.tool";
 		};
 /* End PBXNativeTarget section */
 
@@ -107,6 +135,9 @@
 				LastUpgradeCheck = 2700;
 				TargetAttributes = {
 					2E412A923044CAE500F2B984 = {
+						CreatedOnToolsVersion = 27.0;
+					};
+					2E412AB53044D00000F2B984 = {
 						CreatedOnToolsVersion = 27.0;
 					};
 				};
@@ -126,6 +157,7 @@
 			projectRoot = "";
 			targets = (
 				2E412A923044CAE500F2B984 /* Recompose */,
+				2E412AB53044D00000F2B984 /* Recompose CLI */,
 			);
 		};
 /* End PBXProject section */
@@ -144,7 +176,20 @@
 			files = (
 			);
 		};
+		2E412AB43044D00000F2B984 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+			);
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		2E412ABA3044D00000F2B984 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 2E412AB53044D00000F2B984 /* Recompose CLI */;
+			targetProxy = 2E412AB93044D00000F2B984 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		2E412A9C3044CAE500F2B984 /* Debug configuration for PBXProject "Recompose" */ = {
@@ -327,6 +372,52 @@
 			};
 			name = Release;
 		};
+		2E412AB73044D00000F2B984 /* Debug configuration for PBXNativeTarget "Recompose CLI" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = (
+					arm64,
+					x86_64,
+				);
+				CLANG_ENABLE_OBJC_ARC = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				ONLY_ACTIVE_ARCH = NO;
+				OTHER_LDFLAGS = (
+					"-framework",
+					Foundation,
+					"-framework",
+					CoreGraphics,
+					"-framework",
+					ImageIO,
+				);
+				PRODUCT_NAME = recompose;
+				SKIP_INSTALL = YES;
+			};
+			name = Debug;
+		};
+		2E412AB83044D00000F2B984 /* Release configuration for PBXNativeTarget "Recompose CLI" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = (
+					arm64,
+					x86_64,
+				);
+				CLANG_ENABLE_OBJC_ARC = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				ONLY_ACTIVE_ARCH = NO;
+				OTHER_LDFLAGS = (
+					"-framework",
+					Foundation,
+					"-framework",
+					CoreGraphics,
+					"-framework",
+					ImageIO,
+				);
+				PRODUCT_NAME = recompose;
+				SKIP_INSTALL = YES;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -343,6 +434,14 @@
 			buildConfigurations = (
 				2E412A9F3044CAE500F2B984 /* Debug configuration for PBXNativeTarget "Recompose" */,
 				2E412AA03044CAE500F2B984 /* Release configuration for PBXNativeTarget "Recompose" */,
+			);
+			defaultConfigurationName = Release;
+		};
+		2E412AB63044D00000F2B984 /* Build configuration list for PBXNativeTarget "Recompose CLI" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				2E412AB73044D00000F2B984 /* Debug configuration for PBXNativeTarget "Recompose CLI" */,
+				2E412AB83044D00000F2B984 /* Release configuration for PBXNativeTarget "Recompose CLI" */,
 			);
 			defaultConfigurationName = Release;
 		};

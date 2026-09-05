@@ -1,5 +1,7 @@
 #import <Foundation/Foundation.h>
 
+#import "IconAssembler.h"
+
 static id NullToNil(id value) {
     return value == [NSNull null] ? nil : value;
 }
@@ -265,6 +267,34 @@ static NSDictionary *ReadJSON(NSString *path) {
     return object;
 }
 
+static NSString *ValidatedAssetFilename(id value) {
+    if (![value isKindOfClass:[NSString class]] || [value length] == 0) {
+        [NSException raise:@"InvalidAssetReference" format:@"Expected a non-empty asset filename, found: %@", value];
+    }
+    NSString *filename = value;
+    if (filename.isAbsolutePath || ![filename isEqualToString:filename.lastPathComponent] ||
+        [filename isEqualToString:@"."] || [filename isEqualToString:@".."]) {
+        [NSException raise:@"InvalidAssetReference" format:@"Asset reference must stay within Assets: %@", filename];
+    }
+    return filename;
+}
+
+static void ValidateSourceAsset(NSString *source, NSString *sourceAssets) {
+    NSFileManager *files = NSFileManager.defaultManager;
+    BOOL isDirectory = NO;
+    if (![files fileExistsAtPath:source isDirectory:&isDirectory] || isDirectory) {
+        [NSException raise:@"MissingAsset" format:@"Could not read extracted asset: %@", source.lastPathComponent];
+    }
+
+    NSString *resolvedRoot = sourceAssets.stringByResolvingSymlinksInPath.stringByStandardizingPath;
+    NSString *resolvedSource = source.stringByResolvingSymlinksInPath.stringByStandardizingPath;
+    NSString *rootPrefix = [resolvedRoot stringByAppendingString:@"/"];
+    if (![resolvedSource hasPrefix:rootPrefix]) {
+        [NSException raise:@"InvalidAssetReference"
+                    format:@"Extracted asset resolves outside the Assets directory: %@", source.lastPathComponent];
+    }
+}
+
 static void WriteJSON(id object, NSString *path) {
     NSError *error = nil;
     NSData *data = [NSJSONSerialization dataWithJSONObject:object
@@ -278,15 +308,8 @@ static void WriteJSON(id object, NSString *path) {
     }
 }
 
-int main(int argc, const char *argv[]) {
+int RCAssembleIcon(NSString *manifestPath, NSString *sourceAssets, NSString *outputIcon) {
     @autoreleasepool {
-        if (argc != 4) {
-            fprintf(stderr, "usage: %s MANIFEST_JSON EXTRACTED_ASSETS_DIR OUTPUT_ICON\n", argv[0]);
-            return 64;
-        }
-        NSString *manifestPath = @(argv[1]);
-        NSString *sourceAssets = @(argv[2]);
-        NSString *outputIcon = @(argv[3]);
         NSFileManager *files = NSFileManager.defaultManager;
         if ([files fileExistsAtPath:outputIcon]) {
             fprintf(stderr, "refusing to overwrite existing output: %s\n", outputIcon.UTF8String);
@@ -294,6 +317,10 @@ int main(int argc, const char *argv[]) {
         }
 
         NSDictionary *manifest = ReadJSON(manifestPath);
+        if (![manifest isKindOfClass:[NSDictionary class]] ||
+            ![manifest[@"formatVersion"] isEqual:@1]) {
+            [NSException raise:@"UnsupportedManifest" format:@"Expected extraction manifest format version 1"];
+        }
         NSDictionary *appearances = manifest[@"appearances"];
         NSDictionary *light = appearances[@"UIAppearanceLight"];
         NSDictionary *dark = appearances[@"UIAppearanceDark"];
@@ -339,11 +366,14 @@ int main(int argc, const char *argv[]) {
 
         NSMutableSet<NSString *> *assetNames = [NSMutableSet set];
         for (NSDictionary *group in [lightRecords subarrayWithRange:NSMakeRange(1, lightRecords.count - 1)]) {
-            for (NSDictionary *layer in group[@"layers"]) [assetNames addObject:layer[@"assetFile"]];
+            for (NSDictionary *layer in group[@"layers"]) {
+                [assetNames addObject:ValidatedAssetFilename(layer[@"assetFile"])];
+            }
         }
         for (NSString *name in assetNames) {
             NSString *source = [sourceAssets stringByAppendingPathComponent:name];
             NSString *destination = [outputAssets stringByAppendingPathComponent:name];
+            ValidateSourceAsset(source, sourceAssets);
             if (![files copyItemAtPath:source toPath:destination error:&error]) {
                 [NSException raise:@"AssetCopyFailed" format:@"Could not copy %@: %@", name, error];
             }

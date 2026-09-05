@@ -1,79 +1,123 @@
 import Foundation
 
-struct RecompositionOutput: Sendable {
-    let iconURL: URL
+struct RecompositionSession: Sendable {
+    let id: UUID
+    let iconNames: [String]
+    let catalogURL: URL
     let workspaceURL: URL
 }
 
+struct RecompositionOutput: Sendable {
+    let assetName: String
+    let iconURL: URL
+}
+
 enum RecompositionEngine {
+    private nonisolated struct IconStackRecord: Decodable {
+        let name: String
+    }
+
+    private nonisolated struct ListResponse: Decodable {
+        let formatVersion: Int
+        let iconStacks: [IconStackRecord]
+    }
+
     private enum EngineError: LocalizedError {
-        case missingHelper(String)
-        case helperFailed(name: String, status: Int32, diagnostics: String)
+        case missingHelper
+        case helperFailed(status: Int32, diagnostics: String)
+        case invalidListResponse
         case missingOutput
 
         var errorDescription: String? {
             switch self {
-            case .missingHelper(let name):
-                return "The bundled helper \(name) could not be found."
-            case .helperFailed(let name, let status, let diagnostics):
+            case .missingHelper:
+                return "The bundled recompose command-line tool could not be found."
+            case .helperFailed(let status, let diagnostics):
                 let suffix = diagnostics.isEmpty ? "" : " \(diagnostics)"
-                return "\(name) exited with status \(status).\(suffix)"
+                return "recompose exited with status \(status).\(suffix)"
+            case .invalidListResponse:
+                return "The command-line tool returned an invalid icon-stack list."
             case .missingOutput:
                 return "The pipeline completed without producing an icon."
             }
         }
     }
 
-    nonisolated static func recompose(catalogURL: URL) throws -> RecompositionOutput {
+    nonisolated static func inspect(catalogURL: URL) throws -> RecompositionSession {
         let fileManager = FileManager.default
         let workspaceURL = fileManager.temporaryDirectory
             .appendingPathComponent("recompose-\(UUID().uuidString)", isDirectory: true)
-        let extractionURL = workspaceURL.appendingPathComponent("extracted", isDirectory: true)
-        let iconURL = workspaceURL.appendingPathComponent("AppIcon.icon", isDirectory: true)
+        let stagedCatalogURL = workspaceURL.appendingPathComponent("Assets.car")
 
         do {
             try fileManager.createDirectory(
                 at: workspaceURL,
                 withIntermediateDirectories: true
             )
+            try fileManager.copyItem(at: catalogURL, to: stagedCatalogURL)
 
-            try runHelper(
-                named: "coreui-icon-extract",
-                arguments: [catalogURL.path, "AppIcon", extractionURL.path]
-            )
-            try runHelper(
-                named: "icon-recreate",
-                arguments: [
-                    extractionURL.appendingPathComponent("manifest.json").path,
-                    extractionURL.appendingPathComponent("Assets", isDirectory: true).path,
-                    iconURL.path
-                ]
-            )
-
-            var isDirectory: ObjCBool = false
-            guard fileManager.fileExists(atPath: iconURL.path, isDirectory: &isDirectory),
-                  isDirectory.boolValue else {
-                throw EngineError.missingOutput
+            let data = try runCLI(arguments: ["list", stagedCatalogURL.path, "--json"])
+            let response = try JSONDecoder().decode(ListResponse.self, from: data)
+            let names = response.iconStacks.map(\.name)
+            guard response.formatVersion == 1,
+                  names.allSatisfy({ !$0.isEmpty }),
+                  Set(names).count == names.count else {
+                throw EngineError.invalidListResponse
             }
 
-            return RecompositionOutput(iconURL: iconURL, workspaceURL: workspaceURL)
+            return RecompositionSession(
+                id: UUID(),
+                iconNames: names,
+                catalogURL: stagedCatalogURL,
+                workspaceURL: workspaceURL
+            )
         } catch {
             try? fileManager.removeItem(at: workspaceURL)
             throw error
         }
     }
 
-    nonisolated static func remove(_ output: RecompositionOutput) {
-        try? FileManager.default.removeItem(at: output.workspaceURL)
+    nonisolated static func recompose(
+        session: RecompositionSession,
+        assetName: String
+    ) throws -> RecompositionOutput {
+        guard session.iconNames.contains(assetName) else {
+            throw EngineError.invalidListResponse
+        }
+
+        let fileManager = FileManager.default
+        let outputDirectory = session.workspaceURL.appendingPathComponent("outputs", isDirectory: true)
+        try fileManager.createDirectory(at: outputDirectory, withIntermediateDirectories: true)
+        let iconURL = outputDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension("icon")
+
+        _ = try runCLI(arguments: [
+            session.catalogURL.path,
+            "--asset", assetName,
+            "--output", iconURL.path
+        ])
+
+        var isDirectory: ObjCBool = false
+        guard fileManager.fileExists(atPath: iconURL.path, isDirectory: &isDirectory),
+              isDirectory.boolValue else {
+            throw EngineError.missingOutput
+        }
+
+        return RecompositionOutput(assetName: assetName, iconURL: iconURL)
     }
 
-    private nonisolated static func runHelper(named name: String, arguments: [String]) throws {
-        guard let executableDirectory = Bundle.main.executableURL?.deletingLastPathComponent() else {
-            throw EngineError.missingHelper(name)
-        }
-        let executableURL = executableDirectory.appendingPathComponent(name)
+    nonisolated static func remove(_ session: RecompositionSession) {
+        try? FileManager.default.removeItem(at: session.workspaceURL)
+    }
+
+    private nonisolated static func runCLI(arguments: [String]) throws -> Data {
+        let executableURL = Bundle.main.bundleURL
+            .appendingPathComponent("Contents", isDirectory: true)
+            .appendingPathComponent("Helpers", isDirectory: true)
+            .appendingPathComponent("recompose")
         guard FileManager.default.isExecutableFile(atPath: executableURL.path) else {
-            throw EngineError.missingHelper(name)
+            throw EngineError.missingHelper
         }
 
         let standardOutput = Pipe()
@@ -95,18 +139,18 @@ enum RecompositionEngine {
             .trimmingCharacters(in: .whitespacesAndNewlines)
 
         if !output.isEmpty {
-            NSLog("[%@] %@", name, output)
+            NSLog("[recompose] %@", output)
         }
         if !diagnostics.isEmpty {
-            NSLog("[%@] %@", name, diagnostics)
+            NSLog("[recompose] %@", diagnostics)
         }
 
         guard process.terminationReason == .exit, process.terminationStatus == 0 else {
             throw EngineError.helperFailed(
-                name: name,
                 status: process.terminationStatus,
                 diagnostics: diagnostics
             )
         }
+        return outputData
     }
 }

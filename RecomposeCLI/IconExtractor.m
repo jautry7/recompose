@@ -3,6 +3,8 @@
 #import <ImageIO/ImageIO.h>
 #import <dlfcn.h>
 
+#import "IconExtractor.h"
+
 @interface CoreUICatalog : NSObject
 - (instancetype)initWithURL:(NSURL *)url error:(NSError **)error;
 - (NSArray<NSString *> *)appearanceNames;
@@ -424,22 +426,14 @@ static NSDictionary *DescribeLookup(CoreUINamedLookup *lookup, NSString *appeara
     return record;
 }
 
-int main(int argc, const char *argv[]) {
+int RCExtractIcon(NSString *catalogPath, NSString *assetName, NSString *outputDirectory) {
     @autoreleasepool {
-        if (argc != 4) {
-            fprintf(stderr, "usage: coreui-icon-extract Assets.car asset-name output-directory\n");
-            return 64;
-        }
-
         void *handle = dlopen("/System/Library/PrivateFrameworks/CoreUI.framework/CoreUI", RTLD_NOW | RTLD_LOCAL);
         if (handle == NULL) {
             fprintf(stderr, "Unable to load CoreUI: %s\n", dlerror());
             return 1;
         }
 
-        NSString *catalogPath = [NSString stringWithUTF8String:argv[1]];
-        NSString *assetName = [NSString stringWithUTF8String:argv[2]];
-        NSString *outputDirectory = [NSString stringWithUTF8String:argv[3]];
         NSString *assetDirectory = [outputDirectory stringByAppendingPathComponent:@"Assets"];
         NSFileManager *fileManager = [NSFileManager defaultManager];
         NSError *error = nil;
@@ -539,7 +533,7 @@ int main(int argc, const char *argv[]) {
             @"source": @{
                 @"catalog": [catalogPath lastPathComponent],
                 @"assetName": assetName,
-                @"extractor": @"coreui-icon-extract (Apple CoreUI runtime)"
+                @"extractor": @"recompose extract (Apple CoreUI runtime)"
             },
             @"appearances": appearanceRecords
         };
