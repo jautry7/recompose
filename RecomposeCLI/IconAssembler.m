@@ -43,6 +43,9 @@ static id FillValue(NSDictionary *record) {
     NSDictionary *gradient = NullToNil(record[@"gradient"]);
     if (!gradient) return @"none";
     NSArray *colors = gradient[@"colors"];
+    if (colors.count == 1) {
+        return @{ @"solid": ColorString(colors[0]) };
+    }
     if (colors.count != 2) {
         [NSException raise:@"UnsupportedGradient" format:@"Expected two gradient colors, found %lu",
          (unsigned long)colors.count];
@@ -90,6 +93,7 @@ static void AddSpecializable(NSMutableDictionary *destination,
 
 static NSString *ShadowKind(NSNumber *raw) {
     switch (raw.integerValue) {
+        case 0: return @"none";
         case 2: return @"layer-color";
         case 3: return @"neutral";
         default:
@@ -145,6 +149,11 @@ static NSString *BlendMode(NSNumber *raw) {
     switch (raw.integerValue) {
         case 0: return @"normal";
         case 1: return @"multiply";
+        case 2: return @"screen";
+        case 3: return @"overlay";
+        case 5: return @"lighten";
+        case 8: return @"soft-light";
+        case 9: return @"hard-light";
         case 27: return @"plus-lighter";
         default:
             [NSException raise:@"UnsupportedBlendMode" format:@"Unsupported Core Graphics blend mode: %@", raw];
@@ -197,7 +206,7 @@ static NSDictionary *LayerValue(NSDictionary *base,
                                 NSDictionary *tinted) {
     NSMutableDictionary *layer = [NSMutableDictionary dictionary];
     layer[@"name"] = ShortName(base[@"name"]);
-    layer[@"image-name"] = base[@"assetFile"];
+    AddSpecializable(layer, @"image-name", base[@"assetFile"], dark[@"assetFile"], tinted[@"assetFile"]);
 
     AddSpecializable(layer, @"opacity", base[@"opacity"], dark[@"opacity"], tinted[@"opacity"]);
     AddSpecializable(layer, @"blend-mode", BlendMode(base[@"blendMode"]),
@@ -223,20 +232,19 @@ static NSDictionary *GroupValue(NSDictionary *base,
     // CoreUI's compiled stacks are back-to-front; Icon Composer documents list
     // members front-to-back.
     for (NSInteger index = (NSInteger)baseLayers.count - 1; index >= 0; index--) {
+        // Corresponding slots can resolve to different source names or media types
+        // in each appearance.
         NSDictionary *baseLayer = baseLayers[index];
         NSDictionary *darkLayer = darkLayers[index];
         NSDictionary *tintedLayer = tintedLayers[index];
-        if (![baseLayer[@"name"] isEqual:darkLayer[@"name"]] ||
-            ![baseLayer[@"name"] isEqual:tintedLayer[@"name"]]) {
-            [NSException raise:@"LayerOrderMismatch" format:@"Layer order differs at index %lu",
-             (unsigned long)index];
-        }
         [layers addObject:LayerValue(baseLayer, darkLayer, tintedLayer)];
     }
 
     NSMutableDictionary *group = [NSMutableDictionary dictionary];
     group[@"name"] = ShortName(base[@"name"]);
     group[@"layers"] = layers;
+    AddSpecializable(group, @"blend-mode", BlendMode(base[@"blendMode"]),
+                     BlendMode(dark[@"blendMode"]), BlendMode(tinted[@"blendMode"]));
     AddSpecializable(group, @"opacity", base[@"opacity"], dark[@"opacity"], tinted[@"opacity"]);
     AddSpecializable(group, @"refractivity", RefractivityValue(base),
                      RefractivityValue(dark), RefractivityValue(tinted));
@@ -365,9 +373,11 @@ int RCAssembleIcon(NSString *manifestPath, NSString *sourceAssets, NSString *out
         }
 
         NSMutableSet<NSString *> *assetNames = [NSMutableSet set];
-        for (NSDictionary *group in [lightRecords subarrayWithRange:NSMakeRange(1, lightRecords.count - 1)]) {
-            for (NSDictionary *layer in group[@"layers"]) {
-                [assetNames addObject:ValidatedAssetFilename(layer[@"assetFile"])];
+        for (NSArray *records in @[ lightRecords, darkRecords, tintedRecords ]) {
+            for (NSDictionary *group in [records subarrayWithRange:NSMakeRange(1, records.count - 1)]) {
+                for (NSDictionary *layer in group[@"layers"]) {
+                    [assetNames addObject:ValidatedAssetFilename(layer[@"assetFile"])];
+                }
             }
         }
         for (NSString *name in assetNames) {

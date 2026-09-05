@@ -191,6 +191,39 @@ static NSDictionary *RectDictionary(CGRect rect) {
     return @{@"origin": PointDictionary(rect.origin), @"size": SizeDictionary(rect.size)};
 }
 
+static NSDictionary *SVGImageSize(NSData *data) {
+    NSString *source = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+    if (source.length == 0) {
+        return nil;
+    }
+    NSRegularExpression *expression = [NSRegularExpression
+        regularExpressionWithPattern:@"\\bviewBox\\s*=\\s*[\"']\\s*([^\"']+?)\\s*[\"']"
+                              options:NSRegularExpressionCaseInsensitive
+                                error:nil];
+    NSTextCheckingResult *match = [expression firstMatchInString:source
+                                                         options:0
+                                                           range:NSMakeRange(0, source.length)];
+    if (match.numberOfRanges < 2) {
+        return nil;
+    }
+    NSString *viewBox = [source substringWithRange:[match rangeAtIndex:1]];
+    NSArray<NSString *> *rawParts = [viewBox componentsSeparatedByCharactersInSet:
+        [NSCharacterSet characterSetWithCharactersInString:@" ,\t\r\n"]];
+    NSMutableArray<NSString *> *parts = [NSMutableArray arrayWithCapacity:4];
+    for (NSString *part in rawParts) {
+        if (part.length > 0) [parts addObject:part];
+    }
+    if (parts.count != 4) {
+        return nil;
+    }
+    double width = parts[2].doubleValue;
+    double height = parts[3].doubleValue;
+    if (!isfinite(width) || !isfinite(height) || width <= 0.0 || height <= 0.0) {
+        return nil;
+    }
+    return @{ @"width": @(width), @"height": @(height) };
+}
+
 static NSDictionary *ColorDictionary(CGColorRef color) {
     if (color == NULL) {
         return nil;
@@ -301,10 +334,17 @@ static NSDictionary *RenditionDictionary(id rendition) {
 @implementation ExtractionContext
 @end
 
-static NSString *SaveSourceData(CoreUINamedLookup *lookup, NSString *appearance, ExtractionContext *context, NSError **error) {
+static NSString *SaveSourceData(CoreUINamedLookup *lookup,
+                                NSString *appearance,
+                                ExtractionContext *context,
+                                NSData **exportedData,
+                                NSError **error) {
     NSData *sourceData = ExportedAssetData(lookup, error);
     if (sourceData.length == 0) {
         return nil;
+    }
+    if (exportedData) {
+        *exportedData = sourceData;
     }
 
     NSString *logicalName = [lookup name] ?: [lookup renditionName] ?: @"asset";
@@ -415,9 +455,23 @@ static NSDictionary *DescribeLookup(CoreUINamedLookup *lookup, NSString *appeara
             record[@"fixedFrame"] = @([imageLayer fixedFrame]);
             record[@"imageSize"] = SizeDictionary([imageLayer size]);
         }
-        NSString *filename = SaveSourceData(lookup, appearance, context, error);
+        NSData *sourceData = nil;
+        NSString *filename = SaveSourceData(lookup, appearance, context, &sourceData, error);
         if (filename == nil && *error != nil) {
             return nil;
+        }
+        if ([lookup isKindOfClass:NSClassFromString(@"CUINamedLayerVectorSVGImage")]) {
+            NSDictionary *imageSize = SVGImageSize(sourceData);
+            if (imageSize == nil) {
+                if (error) {
+                    *error = [NSError errorWithDomain:@"CoreUIIconExtract"
+                                                 code:16
+                                             userInfo:@{NSLocalizedDescriptionKey:
+                                                 @"Serialized SVG did not provide a usable viewBox"}];
+                }
+                return nil;
+            }
+            record[@"imageSize"] = imageSize;
         }
         record[@"assetFile"] = filename ?: [NSNull null];
         return record;
