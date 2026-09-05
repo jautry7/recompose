@@ -173,7 +173,6 @@ static NSDictionary *PositionValue(NSDictionary *layer) {
     double y = [origin[@"y"] doubleValue];
     double width = [size[@"width"] doubleValue];
     double height = [size[@"height"] doubleValue];
-    if (x == 0.0 && y == 0.0 && width == 1024.0 && height == 1024.0) return nil;
 
     NSDictionary *imageSize = NullToNil(layer[@"imageSize"]);
     double intrinsicWidth = imageSize ? [imageSize[@"width"] doubleValue] : 1024.0;
@@ -199,6 +198,7 @@ static NSDictionary *PositionValue(NSDictionary *layer) {
 
     double centerX = x + width / 2.0 - 512.0;
     double centerY = y + height / 2.0 - 512.0;
+    if (scale == 1.0 && centerX == 0.0 && centerY == 0.0) return nil;
     return @{
         @"scale": @(scale),
         @"translation-in-points": @[ @(centerX), @(centerY) ]
