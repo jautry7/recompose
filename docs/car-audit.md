@@ -330,6 +330,8 @@ The corpus also revealed values outside the narrowest initial assumptions:
 - inside and outside specular placement
 - frequent per-appearance changes to opacity, fill, lighting, blend, shadow, translucency, and specular properties
 
+Separately from the CAR inspection, Icon Composer has been observed to accept shadow opacity values above 100% and update its rendering accordingly, so values above 1 should not be assumed invalid.
+
 No group-level fills were observed. Refraction parameters never varied between appearances in this sample.
 
 ## What this means for the UI
