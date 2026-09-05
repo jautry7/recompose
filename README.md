@@ -6,6 +6,19 @@ Drop in any CAR file and Recompose will identify the icon stack(s) present in th
 
 [Download Recompose](https://github.com/jautry7/recompose/releases/latest)
 
+## How to use
+
+Recompose requires an app's compiled asset catalog ( `.car` file) as input. These can be found inside an app's bundle package:
+
+- Right click on the app and select "Show packaged contents"
+- Navigate to `Contents/Resources/Assets.car`. This is the file you need; drag it to Recompose to extract the icon(s).
+
+If multiple icons are present, Recompose will offer all `IconImageStack` assets it finds.
+
+If an app does not have an `Assets.car` file in its `Resources` directory, that means the app has not been updated to use Apple's layered icon rendering system yet. In that case, the `.icns` file present in `Resources` is the source of truth for the app's icon.
+
+In rare cases, a developer may use Apple's catalog system for some assets, but may decline to use the new layered icon rendering system. In these cases, Recompose will report that no `IconImageStack` was found in the catalog.
+
 
 ## Watchouts
 
