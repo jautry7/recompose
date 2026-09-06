@@ -135,8 +135,8 @@ static NSString *SpecularPlacement(NSNumber *raw) {
     }
 }
 
-static NSString *SpecularValue(NSDictionary *group) {
-    if (![group[@"hasSpecular"] boolValue]) return @"none";
+static id SpecularValue(NSDictionary *group) {
+    if (![group[@"hasSpecular"] boolValue]) return @NO;
     return SpecularPlacement(group[@"specularPlacement"]);
 }
 
