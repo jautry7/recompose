@@ -68,6 +68,7 @@
 ## Working conventions
 
 - Confirm substantial architectural, structural, or repository-organization changes before implementing them. Exploratory discussion does not make a proposal final.
+- Treat discrepancies in path spelling, capitalization, staging state, repository layout, or other user-created structure as unresolved intent. Ask the user before changing or committing a discrepancy; never silently normalize it or include a guessed correction in a commit.
 - When the user asks to commit a decision to project memory, says “going forward,” or otherwise establishes a durable rule, consider whether this file should also be updated. Add it only when it is useful to future repository work and appropriate for a public file; keep private or session-specific context out.
 - For commits Codex creates at the user's request, preserve the user's configured identity as author, add `Co-authored-by: Codex <codex@openai.com>`, and set `Codex <codex@openai.com>` as committer with command-scoped Git configuration. Never change persistent Git identity, and verify author and committer metadata before pushing.
 - A push has no separate authorship metadata. Do not rewrite a commit the user created in GitHub Desktop merely to add Codex attribution unless explicitly asked.
