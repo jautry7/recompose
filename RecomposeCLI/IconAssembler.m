@@ -59,6 +59,17 @@ static id FillValue(NSDictionary *record) {
     };
 }
 
+static id BackgroundFillValue(NSDictionary *record) {
+    NSString *name = ShortName(record[@"name"] ?: @"");
+    if ([name isEqualToString:@"system-light"] || [name isEqualToString:@"system-dark"]) {
+        // System backgrounds are semantic Icon Composer presets. Their
+        // resolved gradient colors are not equivalent to a custom gradient
+        // with the same numeric components.
+        return name;
+    }
+    return FillValue(record);
+}
+
 static NSDictionary *Specialization(NSString *appearance, id value) {
     if (appearance) return @{ @"appearance": appearance, @"value": value ?: [NSNull null] };
     return @{ @"value": value ?: [NSNull null] };
@@ -89,6 +100,26 @@ static void AddSpecializable(NSMutableDictionary *destination,
     if (darkDiffers) [variants addObject:Specialization(@"dark", dark)];
     if (tintedDiffers) [variants addObject:Specialization(@"tinted", tinted)];
     destination[[key stringByAppendingString:@"-specializations"]] = variants;
+}
+
+static void AddBackgroundFill(NSMutableDictionary *destination,
+                              id base,
+                              id dark,
+                              id tinted) {
+    base = NullToNil(base);
+    dark = NullToNil(dark);
+    tinted = NullToNil(tinted);
+
+    // Root backgrounds are appearance-special: omitting Dark asks Icon Composer
+    // to supply its system Dark gradient instead of inheriting Default. Preserve
+    // the extracted Dark choice even when its value is identical to Default.
+    NSMutableArray *variants = [NSMutableArray arrayWithObject:Specialization(nil, base)];
+    [variants addObject:Specialization(@"dark", dark)];
+    // Mono/Tinted inherits the effective Dark value like other specializations.
+    if (!Same(dark, tinted)) {
+        [variants addObject:Specialization(@"tinted", tinted)];
+    }
+    destination[@"fill-specializations"] = variants;
 }
 
 static NSString *ShadowKind(NSNumber *raw) {
@@ -367,8 +398,9 @@ int RCAssembleIcon(NSString *manifestPath, NSString *sourceAssets, NSString *out
             @"groups": groups,
             @"supported-platforms": @{ @"circles": @[ @"watchOS" ], @"squares": @"shared" }
         } mutableCopy];
-        AddSpecializable(icon, @"fill", FillValue(lightRecords[0]),
-                         FillValue(darkRecords[0]), FillValue(tintedRecords[0]));
+        AddBackgroundFill(icon, BackgroundFillValue(lightRecords[0]),
+                          BackgroundFillValue(darkRecords[0]),
+                          BackgroundFillValue(tintedRecords[0]));
 
         NSError *error = nil;
         NSString *outputAssets = [outputIcon stringByAppendingPathComponent:@"Assets"];

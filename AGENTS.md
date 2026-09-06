@@ -44,6 +44,9 @@
 - Changes to discovery, extraction, appearance handling, or assembly should preserve the audited behavior across logical asset names, multiple stacks, light/dark/tinted source variants, fills, shadows, and blend modes.
 - Treat blend-mode support as one format feature, not a corpus-driven list of exceptions. Icon Composer exposes exactly Normal, Darken, Multiply, Plus Darker, Lighten, Screen, Plus Lighter, Overlay, Soft Light, and Hard Light. Map the corresponding Core Graphics raw values `0`, `4`, `1`, `26`, `5`, `2`, `27`, `3`, `8`, and `9`; reject other Core Graphics modes explicitly rather than emitting invalid `.icon` values. Preserve blend modes on both groups and leaves, including appearance specializations. Group blend modes can determine whether content renders at all.
 - Icon Composer natively supports appearance-specific images through `image-name-specializations`. Preserve and copy Default, Dark, and Mono/Tinted source assets rather than requiring corresponding appearance slots to share a source name or media type.
+- Treat the root background fill as a special appearance case with two independent concerns. Preserve the extracted Dark root-fill specialization even when its value is identical to Default, because equality does not prove that the appearance override was absent. Preserve recognized compiled `system-light` and `system-dark` background names as the matching semantic `.icon` string presets; resolved gradient components are not equivalent substitutes. Mono/Tinted may continue to inherit the effective Dark value when its extracted background is equal. This mapping was visually validated with Image Capture in a compiled Finder-to-Finder comparison.
+- Keep authoring, compiled-reference, and system-presentation evidence separate. Icon Composer preview, a flattened CAR companion, and Finder can expose different aspects of the same logical icon. Preserve semantic values before attempting numeric compensation, and use a compiled Finder-to-Finder comparison for claims about final system fidelity.
+- Preserve disabled specular highlights as the Boolean value `false`. CoreUI's `hasSpecular == NO` is an explicit opt-out; the string `"none"` is not the equivalent `.icon` representation and can cause Icon Composer to apply unwanted specular highlights and dark outlines.
 - Preserve raster intrinsic dimensions and derive vector intrinsic dimensions from the serialized SVG `viewBox`; do not assume vector layers are 1024×1024.
 - Keep corpus observations, CoreUI runtime observations, inferences, and behavior manually validated in Icon Composer distinct. When editable-format semantics remain uncertain, the user can perform targeted Icon Composer tests.
 - Do not claim that Recompose can perfectly recover an originally authored Icon Composer document; compilation may discard or transform source information.
@@ -51,7 +54,6 @@
 ## Fidelity and release boundary
 
 - Do not knowingly ship overt rendering defects.
-- The next identified fidelity investigation is incorrect Liquid Glass treatment: specular highlights and their accompanying dark outlines appear on some recomposed layers where they should not. Trace the extracted CoreUI annotations and emitted group/layer properties before treating this as artwork cleanup.
 - Other known preservation gaps include P3/high-bit-depth raster alternatives and localization or layout-direction variants. Keep these distinct from document validity, and verify whether the editable `.icon` format can represent them before designing a solution.
 
 ## UI workflow
