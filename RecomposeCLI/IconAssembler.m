@@ -43,15 +43,17 @@ static id FillValue(NSDictionary *record) {
     NSDictionary *gradient = NullToNil(record[@"gradient"]);
     if (!gradient) return @"none";
     NSArray *colors = gradient[@"colors"];
-    if (colors.count == 1) {
-        return @{ @"solid": ColorString(colors[0]) };
-    }
-    if (colors.count != 2) {
-        [NSException raise:@"UnsupportedGradient" format:@"Expected two gradient colors, found %lu",
+    if (colors.count < 1 || colors.count > 2) {
+        [NSException raise:@"UnsupportedGradient" format:@"Expected one or two gradient colors, found %lu",
          (unsigned long)colors.count];
     }
+    NSString *startColor = ColorString(colors[0]);
+    // The public .icon format rejects literal one-stop gradients. Preserve their
+    // gradient semantics with the closest valid representation: identical colors
+    // at both endpoints.
+    NSString *endColor = colors.count == 1 ? startColor : ColorString(colors[1]);
     return @{
-        @"linear-gradient": @[ ColorString(colors[0]), ColorString(colors[1]) ],
+        @"linear-gradient": @[ startColor, endColor ],
         @"orientation": @{
             @"start": gradient[@"start"],
             @"stop": gradient[@"end"]
@@ -212,24 +214,48 @@ static NSDictionary *PositionValue(NSDictionary *layer) {
         [NSException raise:@"InvalidImageSize" format:@"Invalid intrinsic image size: %@", imageSize];
     }
 
-    // CoreUI stores integer layer frames, so a uniformly scaled non-square image
-    // can differ from its exact computed frame by as much as one point. Recover
-    // the authored scale from whichever dimension best predicts the other.
+    // Preserve Icon Composer's omitted default position when unit scale centered
+    // on the canvas would compile to the extracted integer frame.
+    double defaultWidth = nearbyint(intrinsicWidth);
+    double defaultHeight = nearbyint(intrinsicHeight);
+    double defaultX = floor(512.0 - intrinsicWidth / 2.0);
+    double defaultY = floor(512.0 - intrinsicHeight / 2.0);
+    if (width == defaultWidth && height == defaultHeight &&
+        x == defaultX && y == defaultY) {
+        return nil;
+    }
+
+    // Xcode rounds continuous scaled dimensions to the nearest integer. Recover
+    // a stable scale from the midpoint of the interval that rounds to both
+    // extracted dimensions. A single-point intersection is usable only when
+    // ties-to-even rounds that boundary to both requested dimensions.
+    double lowerScale = MAX((width - 0.5) / intrinsicWidth,
+                            (height - 0.5) / intrinsicHeight);
+    double upperScale = MIN((width + 0.5) / intrinsicWidth,
+                            (height + 0.5) / intrinsicHeight);
+
     double widthScale = width / intrinsicWidth;
     double heightScale = height / intrinsicHeight;
     double widthScaleResidual = fabs(intrinsicHeight * widthScale - height);
     double heightScaleResidual = fabs(intrinsicWidth * heightScale - width);
-    double scale = widthScaleResidual <= heightScaleResidual ? widthScale : heightScale;
+    double intervalScale = (lowerScale + upperScale) / 2.0;
+    BOOL hasUniformScaleInterval = lowerScale <= upperScale &&
+        nearbyint(intrinsicWidth * intervalScale) == width &&
+        nearbyint(intrinsicHeight * intervalScale) == height;
+    double scale = hasUniformScaleInterval
+        ? intervalScale
+        : (widthScaleResidual <= heightScaleResidual ? widthScale : heightScale);
     double residual = MIN(widthScaleResidual, heightScaleResidual);
-    if (residual > 1.1) {
+    if (!hasUniformScaleInterval && residual > 1.1) {
         [NSException raise:@"UnsupportedFrame"
                     format:@"Layer frame implies non-uniform scaling (frame %@, intrinsic %@)",
          frame, imageSize ?: @{ @"width": @1024, @"height": @1024 }];
     }
 
-    double centerX = x + width / 2.0 - 512.0;
-    double centerY = y + height / 2.0 - 512.0;
-    if (scale == 1.0 && centerX == 0.0 && centerY == 0.0) return nil;
+    // Xcode floors the continuous origin. Choose the midpoint of the discarded
+    // one-point interval so recompilation remains clear of either boundary.
+    double centerX = x + 0.5 + intrinsicWidth * scale / 2.0 - 512.0;
+    double centerY = y + 0.5 + intrinsicHeight * scale / 2.0 - 512.0;
     return @{
         @"scale": @(scale),
         @"translation-in-points": @[ @(centerX), @(centerY) ]
