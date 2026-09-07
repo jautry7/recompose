@@ -89,8 +89,8 @@ static void AddSpecializable(NSMutableDictionary *destination,
     dark = NullToNil(dark);
     tinted = NullToNil(tinted);
     BOOL darkDiffers = !Same(base, dark);
-    // Icon Composer's Mono/Tinted slot inherits the effective Dark value.
-    BOOL tintedDiffers = !Same(dark, tinted);
+    // Icon Composer's Mono/Tinted slot inherits the Default/Light value.
+    BOOL tintedDiffers = !Same(base, tinted);
     if (!darkDiffers && !tintedDiffers) {
         if (base) destination[key] = base;
         return;
