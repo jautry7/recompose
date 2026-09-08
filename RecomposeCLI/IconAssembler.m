@@ -43,22 +43,38 @@ static id FillValue(NSDictionary *record) {
     NSDictionary *gradient = NullToNil(record[@"gradient"]);
     if (!gradient) return @"none";
     NSArray *colors = gradient[@"colors"];
-    if (colors.count < 1 || colors.count > 2) {
-        [NSException raise:@"UnsupportedGradient" format:@"Expected one or two gradient colors, found %lu",
-         (unsigned long)colors.count];
+    NSNumber *type = gradient[@"type"];
+    if (![type isKindOfClass:[NSNumber class]]) {
+        [NSException raise:@"UnsupportedGradient" format:@"Gradient is missing its numeric CoreUI type"];
     }
-    NSString *startColor = ColorString(colors[0]);
-    // The public .icon format rejects literal one-stop gradients. Preserve their
-    // gradient semantics with the closest valid representation: identical colors
-    // at both endpoints.
-    NSString *endColor = colors.count == 1 ? startColor : ColorString(colors[1]);
-    return @{
-        @"linear-gradient": @[ startColor, endColor ],
-        @"orientation": @{
-            @"start": gradient[@"start"],
-            @"stop": gradient[@"end"]
-        }
-    };
+
+    switch (type.integerValue) {
+        case 0:
+            if (colors.count != 1) {
+                [NSException raise:@"UnsupportedGradient"
+                            format:@"Expected one color for an automatic gradient, found %lu",
+                 (unsigned long)colors.count];
+            }
+            return @{ @"automatic-gradient": ColorString(colors[0]) };
+
+        case 1:
+            if (colors.count != 2) {
+                [NSException raise:@"UnsupportedGradient"
+                            format:@"Expected two colors for a linear gradient, found %lu",
+                 (unsigned long)colors.count];
+            }
+            return @{
+                @"linear-gradient": @[ ColorString(colors[0]), ColorString(colors[1]) ],
+                @"orientation": @{
+                    @"start": gradient[@"start"],
+                    @"stop": gradient[@"end"]
+                }
+            };
+
+        default:
+            [NSException raise:@"UnsupportedGradient" format:@"Unsupported CoreUI gradient type: %@", type];
+            return nil;
+    }
 }
 
 static id BackgroundFillValue(NSDictionary *record) {
