@@ -382,4 +382,4 @@ For schema changes:
 
 Record exact tool paths and versions. `xcrun --find ictool` can resolve Xcode's unrelated `ibtoold`-family utility rather than Icon Composer's export tool.
 
-Open format questions and proposed probes are in [`backlog.md`](../backlog.md).
+Open format questions and proposed probes are in the backlog.

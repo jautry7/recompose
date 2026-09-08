@@ -8,6 +8,14 @@
 - Keep Recompose a casual, lightweight, somewhat scrappy open-source project. Maintain good repository hygiene without introducing enterprise-scale process or architecture.
 - Keep the public repository lean and product-facing. Put contributor and implementation guidance in this file rather than expanding the README with internal detail.
 
+## Documentation
+
+- Keep documentation as light as possible. Avoid duplicate explanations, documents that must be synchronized, and unnecessary indexes or cross-reference maintenance.
+- `docs/backlog/` contains one discrete project brief per active item. Delete a brief when work on that item begins; preserve settled results only in the appropriate durable specification or research record.
+- `docs/icon-system-specs/` contains the durable current icon-system specification. Keep definitions with the specification that needs them rather than creating additional reference layers.
+- `docs/research/` contains point-in-time research records and is not a collection of living specifications. `docs/tahoe-support.md` is the sole living Tahoe record and the primary compatibility workstream.
+- Make only explicitly requested documentation changes. Flag stale links, inconsistencies, possible consolidation, and other adjacent cleanup for the user instead of changing them without authorization.
+
 ## Application architecture
 
 - Build the native interface with AppKit and prefer native macOS controls, semantic colors, text styles, SF Symbols, and window behavior over custom reproductions.
@@ -35,9 +43,8 @@
 - Discover logical `IconImageStack` assets by name rather than assuming `AppIcon`. Support catalogs with one, multiple, or no icon stacks; when `AppIcon` exists, the UI may prefer it as the initial selection.
 - Preserve the Apple-only implementation: system tools and Apple frameworks are acceptable, while third-party runtime dependencies require explicit discussion.
 - CoreUI is private and undocumented. Describe behavior as observed, audited, inferred, or documented as appropriate; do not turn corpus results into universal platform claims.
-- Treat `docs/car-audit.md` as a point-in-time record of the v0.1.0 pipeline and empirical evidence from its stated corpus and environment, not as an exhaustive format specification or a document to rewrite as the implementation evolves.
-- Treat `docs/recompilation-audit.md` as a locked point-in-time record. Preserve its original findings and interpretations as written; capture subsequent tests, corrected hypotheses, and additional evidence in the relevant documents under `docs/studies/` instead of revising the audit retrospectively.
-- Treat the human-selected CAR corpus as a living, user-curated library. The 38 icon stacks recorded in `docs/car-audit.md` are a point-in-time audit count, not a fixed test standard, exhaustive fixture set, or claim about the format. The user may add CAR files to the library whenever they are considered useful. When the library is available, regression-test every icon stack currently present and keep each one producing a valid `.icon`; do not confuse successful document creation with rendering fidelity.
+- Treat `docs/research/car-audit.md`, `docs/research/recompilation-audit.md`, and the other research documents as point-in-time evidence, not exhaustive format specifications or living documents to revise as the implementation evolves.
+- Treat the human-selected CAR corpus as a living, user-curated library. The 38 icon stacks recorded in `docs/research/car-audit.md` are a point-in-time audit count, not a fixed test standard, exhaustive fixture set, or claim about the format. The user may add CAR files to the library whenever they are considered useful. When the library is available, regression-test every icon stack currently present and keep each one producing a valid `.icon`; do not confuse successful document creation with rendering fidelity.
 - Codex-side reconstruction validation must stop at nonvisual structural checks: the pipeline completes without error, `icon.json` parses, and every referenced asset is present. The user validates that the document opens in Icon Composer and that every expected layer renders. Overtly absent content is a validity defect even when its layer exists in the sidebar; subtler differences in material appearance are fidelity work.
 - Icon Composer's command-line tools do not work reliably in the Codex environment and cannot be used to validate reconstructed `.icon` documents. Do not invoke `ictool`, `ibtoold`, `actool` icon export, or alternate command-line variants as a workaround. Present the reconstructed `.icon` to the user and let the user perform all Icon Composer opening, rendering, and visual comparison.
 - Useful focused regressions include Maps for a conventional single `AppIcon`, Microsoft Excel for multiple nonstandard names (`Excel_macOS` and `PrideThemedAppIcon`), Keka/Xcode for appearance-specific source artwork, Image Playground for group-level Screen blending, Preview for Soft Light, and Apple Developer's `AppIcon-Release` when available for Plus Darker. Diagnose discovery, extraction, and assembly separately when a full reconstruction fails.

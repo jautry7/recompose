@@ -1,12 +1,12 @@
-# Tahoe Differences
+# Tahoe Support
 
 > This study was started by Codex on September 7, 2026 following the icon-stack recompilation audit. It is specifically framed around macOS Tahoe as the conceptual first version of the Liquid Glass icon system and macOS Golden Gate as its conceptual second version. “v1” and “v2” are working terms used by this project, not official Apple version numbers. The two macOS releases nevertheless represent public milestones in the system's evolution. For posterity, this document compares Golden Gate's v2 behavior with Tahoe's v1 behavior and may become dated when macOS 28 introduces another generation.
 
 ## Purpose and status
 
-This is a living record for Recompose's eventual Tahoe-support investigation. It separates differences caused by reconstruction from differences caused by the public Icon Composer and Xcode toolchains associated with the two Liquid Glass generations.
+This is Recompose's living Tahoe-support record and primary compatibility workstream. It separates differences caused by reconstruction from differences caused by the public Icon Composer and Xcode toolchains associated with the two Liquid Glass generations.
 
-The study is not yet a complete compatibility matrix. It begins with cross-generation evidence uncovered while resolving the recompilation audit. Tahoe-specific implementation work is intentionally deferred until the relevant schema, compiler, and rendition differences can be investigated together in one focused session.
+The study is not yet a complete compatibility matrix. It begins with cross-generation evidence uncovered while resolving the recompilation audit and keeps the related schema, compiler, runtime, and rendition work together.
 
 ## Toolchain context
 
@@ -33,23 +33,12 @@ The current evidence therefore distinguishes two related but separate boundaries
 
 The audit compared normalized icon-stack structure and extracted artwork rather than complete CAR bytes. Several findings initially admitted both a Recompose explanation and a compiler-generation explanation.
 
-Finding 2 concerned source one-stop gradients that Recompose had converted to solid fills. Finding 5 concerned a zero-opacity Logic Pro SVG layer that disappeared during Xcode 27 compilation. Finding 6 included raster images whose decoded samples changed by at most one 8-bit channel value after recompilation.
+Finding 5 concerned a zero-opacity Logic Pro SVG layer that disappeared during Xcode 27 compilation. Finding 6 included raster images whose decoded samples changed by at most one 8-bit channel value after recompilation.
 
-Subsequent focused testing distinguished three different situations:
+Subsequent focused testing distinguished two different situations:
 
-1. One-stop gradients are invalid in both tested public generations and are not a Tahoe-versus-Golden Gate difference.
-2. The Logic Pro reconstruction is accepted by the v2 tools but rejected by the v1 tools, making it a genuine Tahoe compatibility question.
-3. Keka exposes a concrete change in CoreUI image encoding between an Xcode 26 source CAR and an Xcode 27 recompiled CAR.
-
-## One-stop gradients: a cross-generation control
-
-A literal one-stop `linear-gradient` was rejected by both tested generations. Icon Composer 1.5 refused to open it, and Xcode 26.5 failed with an `actool` nil-array exception. Icon Composer 2.0 beta and Xcode 27 beta also rejected the same representation.
-
-A second Tahoe control removed the Golden Gate schema as a variable. A document authored by Icon Composer 1.6 contained two identical background-gradient entries and compiled successfully with Xcode 26.6. Deleting only one background entry made the document fail in both tools. Manual user verification then duplicated that sole entry in place inside the Xcode project; the document immediately opened in Icon Composer 1.6 and compiled successfully without any other change.
-
-Both generations therefore accept a gradient containing two identical endpoint colors and reject a literal one-stop array. Icon Composer 1.5 reserialized the two-stop representation without changing `icon.json`, and Xcode 26.5 compiled it as a named gradient with two references to the same color and stops at 0 and 1. The Xcode 26.6 CAR reported build `17F113` and contained the expected icon stack. Xcode 27 exhibited the same two-stop behavior.
-
-This result is useful to the Tahoe study because it demonstrates a stable limitation across v1 and v2. The one-stop records observed in shipping CARs are treated as relics of an internal or prototype authoring or compilation tool, not as a public-format feature removed by Golden Gate. Recompose reconstructs them using two identical endpoint colors. The focused evidence and reconstruction decision are documented separately in [one-stop-gradients.md](one-stop-gradients.md)
+1. The Logic Pro reconstruction is accepted by the v2 tools but rejected by the v1 tools, making it a genuine Tahoe compatibility question.
+2. Keka exposes a concrete change in CoreUI image encoding between an Xcode 26 source CAR and an Xcode 27 recompiled CAR.
 
 ## Logic Pro: v2 acceptance and v1 rejection
 
@@ -61,9 +50,9 @@ Manual user testing added a more fundamental compatibility result:
 
 - The reconstructed Logic document opens successfully in the Golden Gate-era Icon Composer.
 - Icon Composer 1.5 on Tahoe rejects the same document with “The data isn't in the correct format.”
-- Xcode 26.5 also refuses to compile it and produces the same underlying nil-array-style failure previously seen when compiling an invalid one-stop-gradient document.
+- Xcode 26.5 also refuses to compile it and produces an underlying nil-array-style failure.
 
-The shared error surface does not establish that the two documents fail for the same reason. It indicates that the public v1 parser encountered data it could not represent. The failure occurs before a compiled layer can be inspected, so the audit no longer supports attributing Finding 5 solely to dead-layer optimization.
+The failure indicates that the public v1 parser encountered data it could not represent. It occurs before a compiled layer can be inspected, so the audit no longer supports attributing Finding 5 solely to dead-layer optimization.
 
 Potential compatibility boundaries visible in the Logic document include the `specular-location` feature token and its related specular fields, refractivity, translucency, blur material, and the zero-opacity plus-lighter layer. These are hypotheses rather than identified causes. They are deliberately reserved for the unified Tahoe investigation so that individual v1 incompatibilities are not patched without a coherent versioning model.
 
@@ -114,12 +103,34 @@ Tahoe support consequently requires more than selecting a design-generation labe
 
 For now, Finding 5 of the recompilation audit – regarding the Logic Pro Creator Studio dead-layer – remains earmarked for this study. The Keka portion of Finding 6 requires no compensating Recompose code change: the source pixels and available color metadata were preserved in the editable document, and the observed change was introduced deterministically by Xcode 27's `deepmap2` encoding path.
 
-## Questions reserved for the Tahoe investigation
+## Open items
 
-- Which root keys, feature tokens, group properties, and specialization forms are accepted by Icon Composer 1.5 and Xcode 26.5?
-- After Recompose can emit a fully v1-compatible document, does an authentic Xcode 26.x source containing a one-stop gradient remain invalid in Icon Composer 1.6 when reconstructed without duplicate-stop normalization?
-- Which specific property makes the reconstructed Logic document invalid under the v1 tools?
-- Once a v1-compatible Logic document is produced, does Xcode 26 preserve or omit the zero-opacity glow layer?
-- How do Xcode 26 and Xcode 27 choose among `zip`, `deepmap2`, monochrome, and other rendition encodings for the same source PNG?
-- Which cross-generation differences affect rendered output, which affect only decoded samples or structure, and which remain stable within one compiler generation?
-- What version-aware output policy lets Recompose target Tahoe v1 and Golden Gate v2 without weakening fidelity for either generation?
+All Tahoe-specific compatibility work is maintained here rather than split into separate backlog tickets.
+
+### Editable document compatibility
+
+- Determine the minimum and canonical root keys accepted by Icon Composer 1.5 and 1.6 and Xcode 26.5 and 26.6.
+- Test current feature tokens independently, including `refractivity` and `specular-location`, and determine whether they declare behavior, gate parsing, or both.
+- Record which current group properties and specialization forms are accepted by each v1 tool.
+- Test historical/current specialization placement and specular spellings only where they affect v1 acceptance or migration.
+- Identify the exact property or combination that makes the reconstructed Logic document invalid under the v1 tools.
+
+### Compiled catalog behavior
+
+- Once a v1-compatible Logic document is available, determine whether Xcode 26 preserves or omits its zero-opacity plus-lighter glow layer.
+- Compare how Xcode 26 and Xcode 27 choose among `zip`, `deepmap2`, monochrome, and other observed rendition encodings for the same source PNG.
+- Separate differences that affect rendered output from decoded-sample, encoded-byte, and structural differences.
+- Verify which differences stabilize within one compiler generation and which recur on every round trip.
+
+### Recompose runtime compatibility
+
+- Run discovery, extraction, assembly, document acceptance, compilation, and compiled read-back on Tahoe with a focused representative set.
+- Enumerate only the private CoreUI classes, selectors, signatures, and defaults that Recompose uses, and compare their availability and behavior between Tahoe and Golden Gate.
+- Define explicit failure behavior for a missing or changed private runtime surface rather than silently changing reconstruction output.
+
+### Output policy
+
+- Decide how Recompose selects a Tahoe-compatible or Golden Gate-compatible document schema.
+- Preserve newer fidelity features when targeting Golden Gate without emitting documents that Tahoe cannot open when Tahoe output is requested.
+- Record exact Icon Composer, Xcode, macOS, CoreUI, and document generations for every compatibility conclusion.
+- Keep parser acceptance, compiled representation, and Finder/system rendering as separate evidence boundaries.

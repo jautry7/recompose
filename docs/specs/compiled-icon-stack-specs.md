@@ -1,6 +1,6 @@
 # `IconImageStack` specification
 
-Project notes for the Liquid Glass icon subset of macOS `Assets.car` and its reconstruction as an Icon Composer document.
+Project notes for the Liquid Glass icon stack bundled into macOS asset catalogs (`Assets.car`) and its reconstruction as an Icon Composer document.
 
 Scope:
 
@@ -124,7 +124,7 @@ Observed runtime class: `CUINamedIconLayerStack`.
 | `layers` | background followed by groups, in compiled order |
 | `dataRepresentation` | opaque diagnostic representation |
 
-Audit snapshot: 38 stacks across 36 human-selected macOS CARs.
+An audit was conducted to on a corpus of compiled `Assets.car` files to understand how `IconImageStack` assets can appear within them. The audit identified 38 icon stacks across 36 human-selected CARs.
 
 | Observation | Result |
 |---|---:|
@@ -138,7 +138,7 @@ Audit snapshot: 38 stacks across 36 human-selected macOS CARs.
 | Source object version | 17 for all 38 |
 | Appearance representations | 3 for all 38 |
 
-The detailed corpus remains in `recompose/docs/car-audit.md`.
+The detailed corpus can be found in the CAR audit document.
 
 ## Compiled order
 
@@ -340,9 +340,12 @@ Current fill mappings:
 | named `system-dark` | `"system-dark"` |
 | color | `{ "solid": color }` |
 | no color or gradient | `"none"` |
-| two-color linear gradient | `linear-gradient` plus start/stop orientation |
+| type `0`, one-color gradient | `automatic-gradient` |
+| type `1`, two-color gradient | `linear-gradient` plus start/stop orientation |
 
-Preserve gradient colors, stops, points, numeric type, and name in the manifest even when the writer uses only part of that data.
+Branch on the numeric CoreUI gradient type rather than color count. Missing, malformed, and unknown types fail explicitly instead of being approximated as another fill. Preserve gradient colors, stops, points, numeric type, and name in the manifest even when the public authored form uses only part of that data.
+
+The public `automatic-gradient` form has no known orientation field. Two Screen Sharing layers therefore recompile with the default end point instead of their unusual source end point. This is tracked in Automatic-gradient orientation.
 
 ## Vector extraction
 
@@ -373,29 +376,27 @@ This does not preserve original compression, ancillary metadata, encoded bytes, 
 
 CoreUI supplies frame `(x, y, w, h)`. Source intrinsic dimensions are `(iw, ih)`.
 
-Scale candidates:
+For an authored uniform scale `s` and translation `(tx, ty)`, the tested Xcode compiler calculates each frame from continuous scaled dimensions:
 
 ```text
-sw = w / iw
-sh = h / ih
+scaledWidth  = iw * s
+scaledHeight = ih * s
+
+w = roundToNearestEven(scaledWidth)
+h = roundToNearestEven(scaledHeight)
+
+x = floor(512 + tx - scaledWidth / 2)
+y = floor(512 + ty - scaledHeight / 2)
 ```
 
-Select the candidate whose predicted opposite dimension has the lower residual:
+Reconstruction intersects the scale intervals that can round to the observed width and height. When they overlap, it selects the midpoint of that intersection. Translation uses the midpoint of the continuous-origin interval discarded by `floor`:
 
 ```text
-rw = abs(ih * sw - h)
-rh = abs(iw * sh - w)
-s  = sw when rw <= rh, otherwise sh
+tx = x + 0.5 + scaledWidth / 2 - 512
+ty = y + 0.5 + scaledHeight / 2 - 512
 ```
 
-Current tolerance: minimum residual no greater than `1.1` points.
-
-For the 1024-square macOS canvas:
-
-```text
-tx = x + w / 2 - 512
-ty = y + h / 2 - 512
-```
+When no uniform-scale interval exists, use the axis candidate with the lower opposite-axis residual and reject residuals above `1.1` points. Omit `position` when the extracted frame is consistent with Icon Composer's centered unit-scale default rather than inventing an explicit transform.
 
 Emit:
 
@@ -406,9 +407,9 @@ Emit:
 }
 ```
 
-Omit `position` for frame `(0, 0, 1024, 1024)`.
-
 Use raster intrinsic size or the SVG `viewBox`. Do not default non-square vectors to 1024 × 1024.
+
+One Activity Monitor glow uses a square `1024×1024` source with a compiled `2229×2228` frame. Icon Composer exposes only one uniform scale, and no value can reproduce those unequal dimensions from a square source under the observed rounding rule. Recompose preserves the closest representable frame. This is an accepted public-format limitation, not an open geometry defect.
 
 ## Current preservation limits
 
@@ -421,7 +422,7 @@ The current lookup selects one effective value for gamut, locale, and layout dir
 - SVG export through Core Graphics does not preserve the original source bytes or author metadata.
 - Calendar and Clock stacks contained static artwork only; no date, time, animation, or rotation semantics were present in the inspected stack records.
 
-Investigations needed to close or extend these limits are in [`backlog.md`](../backlog.md).
+Investigations needed to close or extend these limits are in the backlog.
 
 ## Assembly failures
 
