@@ -19,6 +19,24 @@ If an app does not have an `Assets.car` file in its `Resources` directory, that 
 
 In rare cases, a developer may use Apple's catalog system for some assets, but may decline to use the new layered icon rendering system. In these cases, Recompose will report that no `IconImageStack` was found in the catalog.
 
+## Command-line interface
+
+Recompose includes a command-line tool at `Recompose.app/Contents/Helpers/recompose`.
+
+### Usage:
+
+```text
+recompose Assets.car [--asset NAME] [--output OUTPUT.icon]
+recompose reconstruct Assets.car [--asset NAME] [--output OUTPUT.icon]
+recompose extract Assets.car [--asset NAME] [--output DIRECTORY]
+recompose assemble DIRECTORY [--output OUTPUT.icon]
+recompose list Assets.car [--json]
+```
+
+When an asset catalog contains one icon stack, it is selected automatically. Multiple icon stacks can be selected interactively or with `--asset NAME`.
+
+See the [complete command-line reference](docs/cli.md) for details.
+
 
 ## Watchouts
 

@@ -30,13 +30,7 @@
 ## Terminology and CLI contract
 
 - Use the Pipeline definitions section in `compiled-icon-stack-specs` as the source of truth for project terminology. Do not maintain competing definitions here.
-- Preserve the CLI interface:
-  - `recompose Assets.car [--asset NAME] [--output OUTPUT.icon]` runs the complete reconstruction pipeline.
-  - `recompose reconstruct Assets.car [--asset NAME] [--output OUTPUT.icon]` is the explicit form of the same operation.
-  - `recompose extract Assets.car [--asset NAME] [--output DIRECTORY]` runs the extractor.
-  - `recompose assemble DIRECTORY [--output OUTPUT.icon]` runs the assembler against a supported extraction manifest and its `Assets/` directory.
-  - `recompose list Assets.car [--json]` reports discovered logical icon-stack names.
-- `list`, `extract`, and full reconstruction perform discovery themselves. With one icon stack, select it automatically; with multiple stacks, prompt on an interactive terminal and require `--asset` in noninteractive use.
+- Use the public `docs/cli.md` as the source of truth for the CLI interface. Do not maintain a competing specification here.
 
 ## Reconstruction scope and evidence
 
