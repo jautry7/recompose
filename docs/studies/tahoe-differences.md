@@ -20,12 +20,14 @@ Manual Tahoe testing used:
 
 Icon Composer 1.5 was selected as the latest tested release from before WWDC 2026, avoiding possible Golden Gate support introduced afterward.
 
+Follow-up testing on the same Tahoe installation added Xcode 26.6 build `17F113` and Icon Composer 1.6. Icon Composer 1.6 recognizes newer `refractivity` and `specular-location` feature declarations and explains that they require a newer Icon Composer version, but it does not open documents that use them. The version therefore adds awareness of the v2 schema without providing direct editing support for those features.
+
 The current evidence therefore distinguishes two related but separate boundaries:
 
 | Boundary | v1 side | v2 side |
 |---|---|---|
-| Editable document | Icon Composer 1.5 | Icon Composer 2.0 beta |
-| Compiled catalog | Xcode 26.5 and other Xcode 26 builds | Xcode 27.0 beta `27A5252f` |
+| Editable document | Icon Composer 1.5 and 1.6 | Icon Composer 2.0 beta |
+| Compiled catalog | Xcode 26.5, Xcode 26.6 `17F113`, and other Xcode 26 builds | Xcode 27.0 beta `27A5252f` |
 
 ## Origin in the recompilation audit
 
@@ -41,9 +43,11 @@ Subsequent focused testing distinguished three different situations:
 
 ## One-stop gradients: a cross-generation control
 
-A literal one-stop `linear-gradient` was rejected by both tested generations. Icon Composer 1.5 refused to open it, and Xcode 26.5 failed with an `actool` nil-array exception. The Golden Gate-era editor and Xcode 27 beta also rejected the same representation.
+A literal one-stop `linear-gradient` was rejected by both tested generations. Icon Composer 1.5 refused to open it, and Xcode 26.5 failed with an `actool` nil-array exception. Icon Composer 2.0 beta and Xcode 27 beta also rejected the same representation.
 
-Both generations accepted a gradient containing two identical endpoint colors. Icon Composer 1.5 reserialized that representation without changing `icon.json`, and Xcode 26.5 compiled it as a named gradient with two references to the same color and stops at 0 and 1. Xcode 27 exhibited the same behavior.
+A second Tahoe control removed the Golden Gate schema as a variable. A document authored by Icon Composer 1.6 contained two identical background-gradient entries and compiled successfully with Xcode 26.6. Deleting only one background entry made the document fail in both tools. Manual user verification then duplicated that sole entry in place inside the Xcode project; the document immediately opened in Icon Composer 1.6 and compiled successfully without any other change.
+
+Both generations therefore accept a gradient containing two identical endpoint colors and reject a literal one-stop array. Icon Composer 1.5 reserialized the two-stop representation without changing `icon.json`, and Xcode 26.5 compiled it as a named gradient with two references to the same color and stops at 0 and 1. The Xcode 26.6 CAR reported build `17F113` and contained the expected icon stack. Xcode 27 exhibited the same two-stop behavior.
 
 This result is useful to the Tahoe study because it demonstrates a stable limitation across v1 and v2. The one-stop records observed in shipping CARs are treated as relics of an internal or prototype authoring or compilation tool, not as a public-format feature removed by Golden Gate. Recompose reconstructs them using two identical endpoint colors. The focused evidence and reconstruction decision are documented separately in [one-stop-gradients.md](one-stop-gradients.md)
 
@@ -113,6 +117,7 @@ For now, Finding 5 of the recompilation audit – regarding the Logic Pro Creato
 ## Questions reserved for the Tahoe investigation
 
 - Which root keys, feature tokens, group properties, and specialization forms are accepted by Icon Composer 1.5 and Xcode 26.5?
+- After Recompose can emit a fully v1-compatible document, does an authentic Xcode 26.x source containing a one-stop gradient remain invalid in Icon Composer 1.6 when reconstructed without duplicate-stop normalization?
 - Which specific property makes the reconstructed Logic document invalid under the v1 tools?
 - Once a v1-compatible Logic document is produced, does Xcode 26 preserve or omit the zero-opacity glow layer?
 - How do Xcode 26 and Xcode 27 choose among `zip`, `deepmap2`, monochrome, and other rendition encodings for the same source PNG?

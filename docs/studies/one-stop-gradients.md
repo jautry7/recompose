@@ -71,16 +71,26 @@ Gradient Type: 1
 
 The compiler therefore retained a gradient with two identical endpoint colors. It did not collapse the gradient into a solid or optimize it into a one-stop record.
 
+### Updated Tahoe toolchain control
+
+A later test repeated the Tahoe experiment with Icon Composer 1.6 and Xcode 26.6 build `17F113` on the same macOS Tahoe 26.6.2 system. This was necessary because Icon Composer 1.6 had added awareness of newer document features. When given the Golden Gate one-stop probe, it identified `refractivity` and `specular-location` as features from a newer Icon Composer version instead of producing the generic format error shown by Icon Composer 1.5. That message explained the incompatibility more precisely, but the Golden Gate document could not isolate gradient cardinality under the updated Tahoe tools.
+
+Manual human experimentation in Icon Composer 1.6 therefore produced a new native control document. Its background contained two identical blue gradient entries, and its single image layer contained two identical purple gradient entries. A probe copy was made by deleting only one entry from the background gradient. The layer gradient and referenced PNG were left unchanged.
+
+Icon Composer 1.6 rejected the one-stop probe, and Xcode 26.6 refused to compile it. The untouched two-stop control opened and compiled successfully. Its resulting CAR reported `Xcode 26.6 (17F113) via AssetCatalogAgent-AssetRuntime` and contained the expected icon stack.
+
+As a final single-variable confirmation, user testing edited the rejected probe's enclosed `icon.json` in place inside the Xcode project. The sole background color was copied onto a second line and separated with a comma. With no other document change, the icon immediately opened in Icon Composer 1.6 and compiled as expected. This directly tied acceptance to the presence of two gradient entries rather than to unrelated schema, asset, or project differences.
+
 ## Interpretation
 
 The Tahoe and Golden Gate tests produced the same boundary:
 
-| Representation | Icon Composer 1.5 / Xcode 26.5 | Golden Gate tools / Xcode 27 beta |
-|---|---|---|
-| Literal one-stop `linear-gradient` | Rejected | Rejected |
-| Two identical endpoint colors | Opened and compiled | Opened and compiled |
+| Representation | Icon Composer 1.5 / Xcode 26.5 | Icon Composer 1.6 / Xcode 26.6 | Icon Composer 2.0 beta / Xcode 27 beta |
+|---|---|---|---|
+| Literal one-stop `linear-gradient` | Rejected | Rejected | Rejected |
+| Two identical endpoint colors | Opened and compiled | Opened and compiled | Opened and compiled |
 
-This rules out the Xcode 26-to-27 compiler transition as the cause of the audited difference. It also rules out the idea that Icon Composer accepts a one-stop value but merely presents or serializes it differently. In both public toolchains, the one-stop array is invalid at the editable-document boundary.
+This rules out the Xcode 26-to-27 compiler transition as the cause of the audited difference. It also rules out the idea that Icon Composer accepts a one-stop value but merely presents or serializes it differently. The one-stop array is invalid at the editable-document boundary in all three tested public configurations, including the final Xcode 26 and Icon Composer 1 releases.
 
 The tests do not reveal which tool(s) originally emitted the one-stop CoreUI records. They do show that those records cannot be reproduced by either tested public `.icon` toolchain. Their presence in shipping CARs must therefore be treated as a relic of an internal or prototype authoring or compilation tool, rather than as a representation available through the public Icon Composer format.
 
@@ -89,3 +99,5 @@ The tests do not reveal which tool(s) originally emitted the one-stop CoreUI rec
 Recompose will reconstruct a source one-stop gradient as a valid two-stop gradient with identical endpoint colors. It will preserve the source gradient's type, color, channel, and orientation rather than converting it to a solid fill.
 
 This representation is semantically faithful and retains gradient identity throughout the editable document and the compiled CAR. It cannot produce exact structural equality with the source: the recompiled gradient necessarily contains stops at 0 and 1 instead of the source's single stop. That remaining one-versus-two-stop delta is a limitation of the public `.icon` format established by the tested toolchains, not a semantic conversion performed by Recompose.
+
+Once Recompose has a version-aware Tahoe reconstruction path, the result can be checked against a shipping Xcode 26.x icon stack: reconstruct the source one-stop record into an otherwise v1-compatible document without applying the duplicate-stop normalization, then test that document directly in Icon Composer 1.6. The minimal probe predicts rejection, but the corpus-based check will confirm the boundary using an authentic v1 source after unrelated Golden Gate schema fields have been eliminated.
