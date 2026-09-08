@@ -12,7 +12,7 @@
 
 - Keep documentation as light as possible. Avoid duplicate explanations, documents that must be synchronized, and unnecessary indexes or cross-reference maintenance.
 - `docs/backlog/` contains one discrete project brief per active item. Delete a brief when work on that item begins; preserve settled results only in the appropriate durable specification or research record.
-- `docs/icon-system-specs/` contains the durable current icon-system specification. Keep definitions with the specification that needs them rather than creating additional reference layers.
+- `docs/specs/` contains the durable current icon-system specifications. Keep definitions with the specification that needs them rather than creating additional reference layers.
 - `docs/research/` contains point-in-time research records and is not a collection of living specifications. `docs/tahoe-support.md` is the sole living Tahoe record and the primary compatibility workstream.
 - Make only explicitly requested documentation changes. Flag stale links, inconsistencies, possible consolidation, and other adjacent cleanup for the user instead of changing them without authorization.
 
@@ -29,7 +29,7 @@
 
 ## Terminology and CLI contract
 
-- “Reconstruction pipeline” means the complete process. “Extractor” means the first half that reads an icon stack and writes its manifest and source assets. “Assembler” means the second half that turns those extracted files into an editable `.icon` document. “Recomposed icon” means the final output; it does not imply exact recovery of the originally authored document.
+- Use the Pipeline definitions section in `compiled-icon-stack-specs` as the source of truth for project terminology. Do not maintain competing definitions here.
 - Preserve the CLI interface:
   - `recompose Assets.car [--asset NAME] [--output OUTPUT.icon]` runs the complete reconstruction pipeline.
   - `recompose reconstruct Assets.car [--asset NAME] [--output OUTPUT.icon]` is the explicit form of the same operation.

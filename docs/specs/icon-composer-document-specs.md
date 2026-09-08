@@ -1,8 +1,10 @@
-# Icon Composer `.icon` document specification
+# Icon Composer `.icon` document specs
 
-Project notes for the editable Liquid Glass icon package and `icon.json` vocabulary.
+> Project notes for the editable Liquid Glass icon package and `icon.json` vocabulary.
 
 ## Package
+
+A group is an ordered collection of artwork that receives shared composition and rendering properties. Each individual artwork item within a group is a leaf layer. Its source artwork is the SVG or raster file referenced by that leaf.
 
 ```text
 Example.icon/
@@ -14,11 +16,15 @@ Example.icon/
 
 - `.icon` is a directory package.
 - `icon.json` is a JSON root object.
-- Leaf artwork is referenced from `Assets/`.
+- Leaf source artwork is referenced from `Assets/`.
 - SVG and PNG are validated source types.
 - Recompose restricts asset references to direct package-local filenames and rejects absolute paths, `..`, or symlink escapes.
 
 ## Root object
+
+An appearance is a visual mode for which an icon can supply different artwork or property values. Icon Composer presents Default, Dark, and Mono; `icon.json` identifies the latter two as `dark` and `tinted`, while the compiled representation calls the third Tintable. An appearance specialization is an alternate value for one property in one of these appearances.
+
+A fill is a background or artwork treatment applied by Icon Composer rather than baked into source artwork. It may be absent, solid, gradient-based, or a semantic system preset.
 
 | Key | Type | Meaning |
 |---|---|---|
@@ -44,6 +50,8 @@ Common platform value:
 ```
 
 ## Canvas and order
+
+Authored order is the order Icon Composer writes groups and layers into `icon.json`; the observed format places the frontmost item first.
 
 - iPhone, iPad, and Mac source canvas: 1024 × 1024.
 - Apple Watch source canvas: 1088 × 1088.
@@ -73,6 +81,8 @@ Root background inheritance is appearance-special:
 - an explicit Dark value records an authored override, even when equal to Default;
 - Tintable/Mono can inherit the effective Dark value when equal.
 
+Canonical form means the representation that the current Icon Composer writes or consistently interprets with the intended editable behavior. A form can parse without being canonical or preserving those semantics.
+
 Canonical reconstruction:
 
 ```json
@@ -87,6 +97,8 @@ Canonical reconstruction:
 The duplicate Dark entry is semantically significant.
 
 ## Specializations
+
+The base item is the default value of a specializable property. It applies to the Default appearance and supplies the inherited value when a later appearance does not provide an override.
 
 Ordinary properties use a scalar when all appearances share one value:
 
@@ -211,6 +223,8 @@ Accepted form:
 - Position occurs on layers and has also been observed on groups.
 
 ## Group object
+
+Material annotations control system rendering rather than source pixels. Group-level examples include refraction, specular placement, blur, translucency, lighting, and shadow.
 
 | Key | Type | Meaning |
 |---|---|---|
@@ -365,7 +379,7 @@ The list applies to groups and layers. Do not map other `CGBlendMode` values int
 - Recognize the older specialization and specular spellings only as migration input.
 - Validate finite numbers, not guessed UI ranges.
 - Resolve asset paths inside the package boundary.
-- Do not treat a structurally accepted document as visually validated.
+- Do not treat a structurally accepted document as visually validated. Structural fidelity means preserving the hierarchy, source alternatives, and property values; visual fidelity means reproducing the compiled icon under equivalent system rendering conditions. Visual fidelity will generally require human review.
 
 ## Verification
 

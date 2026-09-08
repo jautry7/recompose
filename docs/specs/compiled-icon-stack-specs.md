@@ -1,20 +1,59 @@
-# `IconImageStack` specification
+# Icon stack specs and extraction procedure
 
-Project notes for the Liquid Glass icon stack bundled into macOS asset catalogs (`Assets.car`) and its reconstruction as an Icon Composer document.
+>  Project notes for the Liquid Glass icon stack bundled into macOS asset catalogs (`Assets.car`) and its reconstruction as an Icon Composer document.
 
-Scope:
+
+
+An **icon stack** is a layered logical icon asset present inside of a macOS asset catalog that enables the system to render Liquid Glass effects on the app's icon. In this context, a **logical asset** is a semantically meaningful named resource, such as `AppIcon`, that Recompose identifies and reconstructs. Several technical records, or renditions, can implement that one asset. `IconImageStack` is the logical compiled asset type name observed in catalog metadata; the corresponding private runtime class has been observed as `CUINamedIconLayerStack`.
+
+Icon stacks are designed to support several **appearances**; an appearance is a visual rendering mode with potentially different artwork or property values. There are three appearance modes: Icon Composer refers to them as `Default`, `Dark`, and `Mono`, and CoreUI resolves them to corresponding `Light`, `Dark`, and `Tintable` representations, respectively.
+
+The scope of this document includes:
 
 - logical icon-stack discovery;
-- CoreUI lookup conditions;
+- CoreUI lookup conditions, meaning the selectors used to resolve a rendition;
 - resolved background, group, and leaf records;
 - mapping resolved records to `.icon` fields;
 - extraction and reconstruction invariants;
 - current preservation limits;
 - regression procedure.
 
-Out of scope: the general CAR container, unrelated asset types, and raw BOMStore/CSI layout.
+Out of scope:
+
+- the general CAR container;
+- unrelated asset types;
+- raw BOMStore/CoreTheme Structured Image (CSI) layout
+
+## Pipeline definitions
+
+In this document, the below terminology is used:
+
+- **Reconstruction pipeline** — the end-to-end conversion process from the compiled catalog to an editable `.icon` document: discover the logical asset, extract its resolved artwork and properties, align its appearance variants, and assemble the authored hierarchy
+- **Reconstruct** — the verb for running the complete pipeline
+- **Extractor** — extracts layers and annotations from the CAR and produces a manifest plus source assets
+- **Assembler** — assembles the extracted data into an editable `.icon`
+- **Assembly stage** — preferable to “assembler” when discussing the process rather than the component
+- **Recomposed icon** — the final output, a finished `.icon` presented by Recompose once the pipeline has been run
+
+High-level system architecture:
+
+```
+
+                  ┌       CAR file               ← Recompose's input, compiled by Xcode
+                  │        ↓
+                  │       discovery
+ reconstruction   │        ↓
+ pipeline         │       extraction             ← using Recompose's extractor
+                  │        ↓
+                  │       assembly               ← using Recompose's assembler
+                  │        ↓
+                  └       recomposed icon        ← Recompose's output
+
+```
 
 ## Model
+
+Each **group** is an ordered collection that receives shared composition and rendering properties. A **leaf** or **leaf slot** is one artwork position inside a group; the corresponding slot can resolve to different source files, properties, or media types in different appearances.
 
 ```text
 logical named asset
@@ -31,7 +70,9 @@ The logical asset is the selection unit. Renditions are implementation records b
 
 ## Discovery
 
-`AppIcon` is conventional, not required. A CAR can contain zero, one, or several icon stacks.
+`AppIcon` is the default name provided by Xcode; it is conventional, not required. An asset catalog can contain zero, one, or several arbitrarily named icon stacks.
+
+A named lookup is a CoreUI object exposed while catalog resources are enumerated. It supplies useful candidates, but enumeration alone does not reliably classify every icon stack.
 
 Validated discovery sequence:
 
@@ -55,9 +96,11 @@ Direct class filtering is incomplete. Calendar, Font Book, and Stocks did not en
 | One icon stack | Reconstruct the discovered logical name. |
 | Multiple icon stacks | Require a selection. |
 
-Do not collapse “no icon stack” into “cannot process CAR.”
+“No icon stack present” is not equivalent to “cannot process CAR,” therefore they require different UI presentations in Recompose.
 
 ## Lookup tuple
+
+The lookup tuple selects by appearance, scale, device idiom, subtype, display gamut, locale, and layout direction. The resulting resolved representation contains the effective stack values for that particular set of conditions.
 
 The observed stack lookup accepts:
 
@@ -76,7 +119,9 @@ Current extraction requests:
 | locale | `nil` |
 | appearance | one alias at a time |
 
-Appearance aliases:
+Display gamut is the color range requested during lookup. Selecting gamut `0` can choose an ordinary rendition even when a Display P3 or higher-bit-depth alternative is available.
+
+The three authored appearances resolve under the following catalog aliases:
 
 | Manifest role | Catalog aliases |
 |---|---|
@@ -88,7 +133,7 @@ Record the alias that resolved. Do not expose alias differences as different aut
 
 ## Extraction manifest
 
-Recompose separates CoreUI extraction from `.icon` assembly. The intermediate manifest is project-owned, not an Apple format.
+Recompose separates CoreUI extraction from `.icon` assembly. The intermediate manifest is a project-owned JSON representation, not an Apple format. It preserves resolved CoreUI observations for the later assembly stage.
 
 ```text
 manifest
@@ -121,7 +166,7 @@ Observed runtime class: `CUINamedIconLayerStack`.
 | `size` | canvas size |
 | `sourceObjectVersion` | compiled stack generation |
 | `renderingProperties` | diagnostic metadata |
-| `layers` | background followed by groups, in compiled order |
+| `layers` | background followed by groups, in CoreUI's back-to-front compiled order |
 | `dataRepresentation` | opaque diagnostic representation |
 
 An audit was conducted to on a corpus of compiled `Assets.car` files to understand how `IconImageStack` assets can appear within them. The audit identified 38 icon stacks across 36 human-selected CARs.
@@ -142,7 +187,7 @@ The detailed corpus can be found in the CAR audit document.
 
 ## Compiled order
 
-CoreUI order is the inverse of authored `icon.json` order at both hierarchy levels.
+Compiled order is the back-to-front order in which CoreUI returns resolved groups and leaves. It is the inverse of authored `icon.json` order at both hierarchy levels.
 
 ```text
 CoreUI stack: [background, back group, ..., front group]
@@ -156,7 +201,7 @@ Reconstruction removes child zero and reverses the remaining groups. It also rev
 
 ## Background record
 
-Child zero is the root background, not an authored group. It carries a color or gradient and can retain a semantic preset name.
+The background record is child zero of the compiled stack. It carries the root fill rather than leaf artwork, is not an authored group, and can retain a semantic preset name.
 
 Known preset names:
 
@@ -170,10 +215,12 @@ Validated `system-dark` result:
 - Image Capture resolved the same named `system-dark` record for Default, Dark, and Tintable.
 - Reconstructing its gamma-2.2 gray stops as a literal gray gradient rendered too light.
 - Reconstructing `automatic-gradient` from black rendered too dark.
-- Reconstructing equal-channel Display P3/sRGB stops matched an Icon Composer preview and flattened companion closely but remained too light after compilation.
+- Reconstructing equal-channel Display P3/sRGB stops matched an Icon Composer preview and flattened companion closely but remained too light after compilation. A flattened companion is a pre-rendered icon resource stored elsewhere in the same CAR rather than part of the editable layer hierarchy.
 - The RGB reconstruction compiled as a generated `Gradient-1`; the source retained the named `system-dark` record.
 - Emitting the string value `"system-dark"` preserved the semantic record.
 - The rebuilt icon matched Image Capture in a Finder-to-Finder comparison.
+
+Finder performs presentation rendering: final rendering by a system consumer rather than the authoring preview. This is the comparison boundary for claims about the icon's system appearance.
 
 Root appearance handling is not ordinary value deduplication:
 
@@ -190,6 +237,8 @@ Always retain the explicit Dark root specialization, even when its resolved valu
 ## Group record
 
 Observed runtime class: `CUINamedIconLayerGroup`.
+
+Material annotations control system rendering rather than source pixels. The group properties below cover glass participation, refraction, specular placement, blur, translucency, lighting, and shadow.
 
 | CoreUI property | Type | `.icon` mapping |
 |---|---|---|
@@ -483,4 +532,4 @@ Focused regression cases:
 | Apple Developer `AppIcon-Release` | Plus Darker, when available |
 | Image Capture | `system-dark`, explicit Dark background, disabled specular, mixed media, non-square placement |
 
-Structural success and visual fidelity are separate results.
+Structural fidelity means preserving groups, leaf slots, source alternatives, and property values. Visual fidelity means that the reconstructed document, after compilation, reproduces the original stack under equivalent system rendering conditions. They are separate results.
