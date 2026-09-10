@@ -15,9 +15,10 @@ static void PrintUsage(void) {
     fprintf(stderr,
             "usage:\n"
             "  recompose Assets.car [--asset NAME] [--output OUTPUT.icon]\n"
+            "  recompose Assets.car [--asset NAME] [--output OUTPUT.icon] [--generation 26|27]\n"
             "  recompose reconstruct Assets.car [--asset NAME] [--output OUTPUT.icon]\n"
             "  recompose extract Assets.car [--asset NAME] [--output DIRECTORY]\n"
-            "  recompose assemble DIRECTORY [--output OUTPUT.icon]\n"
+            "  recompose assemble DIRECTORY [--output OUTPUT.icon] [--generation 26|27]\n"
             "  recompose list Assets.car [--json]\n");
 }
 
@@ -171,7 +172,9 @@ static int RunExtract(NSString *catalogPath, NSString *assetName, NSString *outp
     return status;
 }
 
-static int RunAssemble(NSString *extractionDirectory, NSString *outputPath) {
+static int RunAssemble(NSString *extractionDirectory,
+                       NSString *outputPath,
+                       RCIconGeneration generation) {
     NSString *assetName = ManifestAssetName(extractionDirectory);
     if (assetName.length == 0) {
         fprintf(stderr, "The extraction directory does not contain a supported manifest.json.\n");
@@ -184,10 +187,13 @@ static int RunAssemble(NSString *extractionDirectory, NSString *outputPath) {
     }
     NSString *manifestPath = [extractionDirectory stringByAppendingPathComponent:@"manifest.json"];
     NSString *assetsPath = [extractionDirectory stringByAppendingPathComponent:@"Assets"];
-    return RCAssembleIcon(manifestPath, assetsPath, destination);
+    return RCAssembleIcon(manifestPath, assetsPath, destination, generation);
 }
 
-static int RunReconstruct(NSString *catalogPath, NSString *assetName, NSString *outputPath) {
+static int RunReconstruct(NSString *catalogPath,
+                          NSString *assetName,
+                          NSString *outputPath,
+                          RCIconGeneration generation) {
     NSArray<NSString *> *names = Discover(catalogPath);
     if (names == nil) {
         return 1;
@@ -224,7 +230,8 @@ static int RunReconstruct(NSString *catalogPath, NSString *assetName, NSString *
             status = RCAssembleIcon(
                 [extraction stringByAppendingPathComponent:@"manifest.json"],
                 [extraction stringByAppendingPathComponent:@"Assets"],
-                destination
+                destination,
+                generation
             );
         }
     } @finally {
@@ -261,18 +268,29 @@ int main(int argc, const char *argv[]) {
             NSString *inputPath = @(argv[inputIndex]);
             NSString *assetName = nil;
             NSString *outputPath = nil;
+            RCIconGeneration generation = RCIconGeneration27;
             BOOL json = NO;
             for (NSInteger index = inputIndex + 1; index < argc; index++) {
                 NSString *argument = @(argv[index]);
                 if ([argument isEqualToString:@"--json"]) {
                     json = YES;
-                } else if ([argument isEqualToString:@"--asset"] || [argument isEqualToString:@"--output"]) {
+                } else if ([argument isEqualToString:@"--asset"] ||
+                           [argument isEqualToString:@"--output"] ||
+                           [argument isEqualToString:@"--generation"]) {
                     if (++index >= argc) {
                         fprintf(stderr, "%s requires a value.\n", argument.UTF8String);
                         return RCUsageExit;
                     }
                     if ([argument isEqualToString:@"--asset"]) {
                         assetName = @(argv[index]);
+                    } else if ([argument isEqualToString:@"--generation"]) {
+                        NSString *value = @(argv[index]);
+                        if ([value isEqualToString:@"26"]) {
+                            generation = RCIconGeneration26;
+                        } else if (![value isEqualToString:@"27"]) {
+                            fprintf(stderr, "--generation must be 26 or 27.\n");
+                            return RCUsageExit;
+                        }
                     } else {
                         outputPath = @(argv[index]);
                     }
@@ -283,7 +301,7 @@ int main(int argc, const char *argv[]) {
             }
 
             if ([command isEqualToString:@"list"]) {
-                if (assetName || outputPath) {
+                if (assetName || outputPath || generation != RCIconGeneration27) {
                     fprintf(stderr, "list accepts only the --json option.\n");
                     return RCUsageExit;
                 }
@@ -301,9 +319,9 @@ int main(int argc, const char *argv[]) {
                     fprintf(stderr, "assemble does not accept --asset; the asset is recorded in manifest.json.\n");
                     return RCUsageExit;
                 }
-                return RunAssemble(inputPath, outputPath);
+                return RunAssemble(inputPath, outputPath, generation);
             }
-            return RunReconstruct(inputPath, assetName, outputPath);
+            return RunReconstruct(inputPath, assetName, outputPath, generation);
         } @catch (NSException *exception) {
             fprintf(stderr, "%s: %s\n", exception.name.UTF8String, exception.reason.UTF8String);
             return 1;

@@ -307,12 +307,12 @@ The Activity Monitor result is accepted as a known public-format limitation. Rec
 
 Logic Pro Creator Studio's source stack contains a zero-opacity, plus-lighter SVG glow layer. Recompose preserves the layer, asset reference, opacity, and blend mode in the editable document, but Xcode 27 omits it from the recompiled stack. The source CAR was produced by Xcode 26.
 
-The reconstructed v2 document opens under the Golden Gate tools but is rejected by the tested Tahoe-era Icon Composer and Xcode versions before a comparable v1 CAR can be produced. It is therefore not yet possible to separate dead-layer optimization from editable-schema incompatibility or another compiler-generation difference. No corrective code has been applied. The question is reserved for the Tahoe support investigation.
+The reconstructed v27 document opens under the Golden Gate tools but is rejected by the tested Tahoe-era Icon Composer and Xcode versions before a comparable v26 CAR can be produced. A later generation-specific probe produced accepted v26 documents and showed that Xcode 26.5 and 26.6 both omit the same zero-opacity leaf. The optimization therefore predates v27 and is not evidence of a v26/v27 rendering-model difference. No corrective code has been applied.
 
 ## Finding 6: artwork rewriting
 
 The audit grouped three distinct artwork differences. ChatGPT.app's changed Tinted artwork was resolved by Finding 1. Typora's SVG lost an empty `<defs/>` element during compilation, a rendering-neutral compiler canonicalization. The remaining cases are raster assets whose decoded color samples changed by at most one 8-bit channel value.
 
-Keka showed that an Xcode 26 `zip` rendition became an Xcode 27 `deepmap2` rendition, after which a second Xcode 27 round trip was stable and byte-identical to the first. That evidence supports a deterministic compiler-generation canonicalization rather than repeated loss in Recompose, but it does not establish a universal explanation for every affected raster.
+Keka first showed that an early Xcode 26 `zip` rendition became an Xcode 27 `deepmap2` rendition, after which a second Xcode 27 round trip was stable and byte-identical to the first. A later probe showed the same conversion under both Xcode 26.5 and 26.6, placing the behavior within v26 rather than at the v26/v27 boundary. That evidence supports deterministic compiler canonicalization rather than repeated loss in Recompose, but it does not establish a universal explanation for every affected raster.
 
-No compensating code has been applied. The remaining raster cases and rendition-encoding differences are reserved for the Tahoe support investigation, where equivalent v1 and v2 documents can be compiled within their native toolchains.
+No compensating code has been applied. Rendering fidelity, rather than reproducing compiler-private rendition encodings, remains the acceptance boundary for the unresolved raster cases.

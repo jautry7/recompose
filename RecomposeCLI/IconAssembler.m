@@ -184,8 +184,18 @@ static NSString *SpecularPlacement(NSNumber *raw) {
     }
 }
 
-static id SpecularValue(NSDictionary *group) {
+static id SpecularValue(NSDictionary *group, RCIconGeneration generation) {
     if (![group[@"hasSpecular"] boolValue]) return @NO;
+
+    NSNumber *placement = group[@"specularPlacement"];
+    if (generation == RCIconGeneration26) {
+        if (placement.integerValue == 0) {
+            // v26's enabled legacy placement is represented by omission.
+            return nil;
+        }
+        [NSException raise:@"UnsupportedV26SpecularPlacement"
+                    format:@"v26 output cannot represent specular placement: %@", placement];
+    }
     return SpecularPlacement(group[@"specularPlacement"]);
 }
 
@@ -297,7 +307,8 @@ static NSDictionary *LayerValue(NSDictionary *base,
 
 static NSDictionary *GroupValue(NSDictionary *base,
                                 NSDictionary *dark,
-                                NSDictionary *tinted) {
+                                NSDictionary *tinted,
+                                RCIconGeneration generation) {
     NSArray *baseLayers = base[@"layers"];
     NSArray *darkLayers = dark[@"layers"];
     NSArray *tintedLayers = tinted[@"layers"];
@@ -323,15 +334,17 @@ static NSDictionary *GroupValue(NSDictionary *base,
     AddSpecializable(group, @"blend-mode", BlendMode(base[@"blendMode"]),
                      BlendMode(dark[@"blendMode"]), BlendMode(tinted[@"blendMode"]));
     AddSpecializable(group, @"opacity", base[@"opacity"], dark[@"opacity"], tinted[@"opacity"]);
-    AddSpecializable(group, @"refractivity", RefractivityValue(base),
-                     RefractivityValue(dark), RefractivityValue(tinted));
+    if (generation == RCIconGeneration27) {
+        AddSpecializable(group, @"refractivity", RefractivityValue(base),
+                         RefractivityValue(dark), RefractivityValue(tinted));
+    }
     AddSpecializable(group, @"shadow", ShadowValue(base), ShadowValue(dark), ShadowValue(tinted));
     AddSpecializable(group, @"translucency", TranslucencyValue(base),
                      TranslucencyValue(dark), TranslucencyValue(tinted));
     AddSpecializable(group, @"blur-material", BlurMaterialValue(base),
                      BlurMaterialValue(dark), BlurMaterialValue(tinted));
-    AddSpecializable(group, @"specular", SpecularValue(base),
-                     SpecularValue(dark), SpecularValue(tinted));
+    AddSpecializable(group, @"specular", SpecularValue(base, generation),
+                     SpecularValue(dark, generation), SpecularValue(tinted, generation));
     AddSpecializable(group, @"lighting",
                      [base[@"gathersSpecularByElement"] boolValue] ? @"individual" : @"combined",
                      [dark[@"gathersSpecularByElement"] boolValue] ? @"individual" : @"combined",
@@ -393,7 +406,10 @@ static void WriteJSON(id object, NSString *path) {
     }
 }
 
-int RCAssembleIcon(NSString *manifestPath, NSString *sourceAssets, NSString *outputIcon) {
+int RCAssembleIcon(NSString *manifestPath,
+                   NSString *sourceAssets,
+                   NSString *outputIcon,
+                   RCIconGeneration generation) {
     @autoreleasepool {
         NSFileManager *files = NSFileManager.defaultManager;
         if ([files fileExistsAtPath:outputIcon]) {
@@ -432,14 +448,16 @@ int RCAssembleIcon(NSString *manifestPath, NSString *sourceAssets, NSString *out
                 [NSException raise:@"GroupOrderMismatch" format:@"Group order differs at index %lu",
                  (unsigned long)index];
             }
-            [groups addObject:GroupValue(baseGroup, darkGroup, tintedGroup)];
+            [groups addObject:GroupValue(baseGroup, darkGroup, tintedGroup, generation)];
         }
 
         NSMutableDictionary *icon = [@{
-            @"features": @[ @"refractivity", @"specular-location" ],
             @"groups": groups,
             @"supported-platforms": @{ @"circles": @[ @"watchOS" ], @"squares": @"shared" }
         } mutableCopy];
+        if (generation == RCIconGeneration27) {
+            icon[@"features"] = @[ @"refractivity", @"specular-location" ];
+        }
         AddBackgroundFill(icon, BackgroundFillValue(lightRecords[0]),
                           BackgroundFillValue(darkRecords[0]),
                           BackgroundFillValue(tintedRecords[0]));

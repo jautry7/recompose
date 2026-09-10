@@ -1,16 +1,31 @@
 # Icon stack specs and extraction procedure
 
->  Project notes for the Liquid Glass icon stack bundled into macOS asset catalogs (`Assets.car`) and its reconstruction as an Icon Composer document.
+>  This document outlines observed specifications of the Liquid Glass icon stack system bundled into macOS asset catalogs (`Assets.car`) and documents processes for its reconstruction as an Icon Composer document. It describes behavior of the current v27 toolchain; where applicable, differences observed between the v26 Tahoe toolchain and v27 Golden Gate toolchain are denoted with compatibility notes.
 
+## Background
 
+To support the new Liquid Glass rendering system, macOS Tahoe 26 introduced a new format for packaging app icons into an application bundle referred to here as an **icon stack**. The term "icon stack" refers to a double-ended system where a layered `.icon` file is created by a developer or designer using Icon Composer, and then compiled into an `IconImageStack` by Xcode and placed within the app's asset catalog (`Assets.car`). `IconImageStack` is the logical compiled asset type name of the icon stack observed in catalog metadata; the corresponding private runtime class has been observed as `CUINamedIconLayerStack`.
 
-An **icon stack** is a layered logical icon asset present inside of a macOS asset catalog that enables the system to render Liquid Glass effects on the app's icon. In this context, a **logical asset** is a semantically meaningful named resource, such as `AppIcon`, that Recompose identifies and reconstructs. Several technical records, or renditions, can implement that one asset. `IconImageStack` is the logical compiled asset type name observed in catalog metadata; the corresponding private runtime class has been observed as `CUINamedIconLayerStack`.
+The "stack" or "layered" structure of the asset is key, because it enables the system to render the icon in a multitude of **appearances**. An appearance is a visual rendering mode with potentially different artwork or material property values. There are three appearance modes: Icon Composer refers to them as `Default`, `Dark`, and `Mono`, and CoreUI resolves them to corresponding `Light`, `Dark`, and `Tintable` representations, respectively.
 
-Icon stacks are designed to support several **appearances**; an appearance is a visual rendering mode with potentially different artwork or property values. There are three appearance modes: Icon Composer refers to them as `Default`, `Dark`, and `Mono`, and CoreUI resolves them to corresponding `Light`, `Dark`, and `Tintable` representations, respectively.
+By combining appearance with other inputs, such as scale and localization details, macOS can resolve several technical records, or **renditions**, from a single icon stack asset. For example, to display an app in the `/Applications` folder, Finder may send a request to CoreUI for a rendition of an icon stack named `AppIcon` that looks like this:
+
+```
+Give me AppIcon
+for the Dark appearance,
+at scale 1,
+for this gamut,
+locale,
+and layout direction.
+```
+
+Apple currently does not officially support decompiling an `IconImageStack` out of a compiled asset catalog, meaning a human-readable format of the icon stack cannot be officially derived from an app's bundled asset catalog.
+
+This is the purpose of the Recompose project; to identify the manifest and assets of a compiled `IconImageStack` and map that information back to the Icon Composer `.icon` document specification so that the icon stack may become human-readable again.
 
 The scope of this document includes:
 
-- logical icon-stack discovery;
+- logical icon stack discovery;
 - CoreUI lookup conditions, meaning the selectors used to resolve a rendition;
 - resolved background, group, and leaf records;
 - mapping resolved records to `.icon` fields;
@@ -18,11 +33,13 @@ The scope of this document includes:
 - current preservation limits;
 - regression procedure.
 
-Out of scope:
+This document does not cover:
 
 - the general CAR container;
 - unrelated asset types;
 - raw BOMStore/CoreTheme Structured Image (CSI) layout
+
+The observed format of the `.icon` document can be found in `icon-composer-document-specs.md`
 
 ## Pipeline definitions
 
@@ -76,14 +93,14 @@ A named lookup is a CoreUI object exposed while catalog resources are enumerated
 
 Validated discovery sequence:
 
-1. Open the CAR with `CUICatalog`.
-2. Enumerate named lookups.
-3. Collect names from multisize-image and directly visible icon-layer-stack lookups.
-4. Collect both `name` and `renditionName` when present.
-5. Remove a terminal `.iconstack` suffix from candidate names.
-6. Attempt `iconLayerStack` resolution for every candidate under the recognized appearance aliases.
-7. Keep only names that resolve as an icon stack.
-8. Present all suffixless logical names; do not infer a primary stack.
+1. Recompose opens the CAR with `CUICatalog`.
+2. It enumerates named lookups.
+3. Names are collected from multisize-image and directly visible icon-layer-stack lookups.
+4. Both `name` and `renditionName` are collected when present.
+5. A terminal `.iconstack` suffix is removed from candidate names.
+6. `iconLayerStack` resolution is attempted for every candidate under the recognized appearance aliases.
+7. Only names that resolve as an icon stack are retained.
+8. All suffixless logical names are presented without inferring a primary stack.
 
 Direct class filtering is incomplete. Calendar, Font Book, and Stocks did not enumerate as direct icon-stack objects in the audit. Treating every multisize lookup as an icon stack creates false positives. Type-specific resolution is the decisive test.
 
@@ -93,8 +110,8 @@ Direct class filtering is incomplete. Calendar, Font Book, and Stocks did not en
 |---|---|
 | Cannot open CAR | Input, catalog, runtime, or environment failure. |
 | No icon stack | Valid CAR with no logical `IconImageStack`. |
-| One icon stack | Reconstruct the discovered logical name. |
-| Multiple icon stacks | Require a selection. |
+| One icon stack | The discovered logical name can be reconstructed directly. |
+| Multiple icon stacks | A selection is required. |
 
 “No icon stack present” is not equivalent to “cannot process CAR,” therefore they require different UI presentations in Recompose.
 
@@ -129,7 +146,7 @@ The three authored appearances resolve under the following catalog aliases:
 | `UIAppearanceDark` | `UIAppearanceDark`, `NSAppearanceNameDarkAqua` |
 | `ISAppearanceTintable` | `ISAppearanceTintable` |
 
-Record the alias that resolved. Do not expose alias differences as different authored appearances.
+The manifest records the alias that resolved. Alias differences are not exposed as different authored appearances.
 
 ## Extraction manifest
 
@@ -148,7 +165,7 @@ manifest
     └── ISAppearanceTintable
 ```
 
-Each appearance contains the resolved stack record and its background/group/leaf tree. Extracted SVG and PNG files live in the adjacent `Assets/` directory. Keep private runtime identity, selection conditions, rendition metadata, and otherwise unmapped values in the manifest.
+Each appearance contains the resolved stack record and its background/group/leaf tree. Extracted SVG and PNG files live in the adjacent `Assets/` directory. The manifest retains private runtime identity, selection conditions, rendition metadata, and otherwise unmapped values.
 
 ## Stack record
 
@@ -164,12 +181,12 @@ Observed runtime class: `CUINamedIconLayerStack`.
 | `idiom` | lookup result |
 | `displayGamut` | lookup result |
 | `size` | canvas size |
-| `sourceObjectVersion` | compiled stack generation |
+| `sourceObjectVersion` | diagnostic stack object version; not a format-generation discriminator |
 | `renderingProperties` | diagnostic metadata |
 | `layers` | background followed by groups, in CoreUI's back-to-front compiled order |
 | `dataRepresentation` | opaque diagnostic representation |
 
-An audit was conducted to on a corpus of compiled `Assets.car` files to understand how `IconImageStack` assets can appear within them. The audit identified 38 icon stacks across 36 human-selected CARs.
+An audit was conducted on a corpus of compiled `Assets.car` files to understand how `IconImageStack` assets can appear within them. The audit identified 38 icon stacks across 36 human-selected CARs.
 
 | Observation | Result |
 |---|---:|
@@ -180,10 +197,32 @@ An audit was conducted to on a corpus of compiled `Assets.car` files to understa
 | CARs with no stack | 5 |
 | Canvas | 1024 × 1024 for all 38 |
 | Scale | 1 for all 38 |
-| Source object version | 17 for all 38 |
+| Storage version | 17 for all 38 |
 | Appearance representations | 3 for all 38 |
 
 The detailed corpus can be found in the CAR audit document.
+
+### Compiler-generation provenance
+
+The CAR-level `AssetStorageVersion` identifies the compiler generation observed in the audited catalogs: values naming Xcode 26 indicate v26 compiler provenance, while values naming Xcode 27 indicate v27 compiler provenance. This is evidence of which toolchain wrote the catalog, not proof that an individual stack uses properties unique to that generation. A missing or unrecognized value leaves the generation unknown.
+
+`sourceObjectVersion` does not distinguish v26 from v27 in the current corpus. Recompose records it diagnostically without using it to select the document writer.
+
+### Minimum required specification
+
+Reconstruction targets the earliest document specification capable of representing every observed compiled behavior. Recompose treats each behavior as a capability with a minimum specification version, evaluates all capabilities present in the resolved stack, and selects the highest minimum version among them.
+
+| Observed compiled capability | Minimum specification |
+|---|---:|
+| Properties and values representable by the baseline material model | v26 |
+| Nonzero `refractionHeight` or `refractionStrength` | v27 |
+| Enabled `specularPlacement` value `1` (`inside`) or `2` (`outside`) | v27 |
+
+These are two distinct specular states. When CoreUI reports `hasSpecular` as true with `specularPlacement` set to `0`, the v26 writer omits `specular`, and the v26 toolchain interprets that omission as its enabled default. When CoreUI reports `hasSpecular` as false, the v26 writer emits Boolean `false`.
+
+Xcode resolves omitted v26 properties and their default-valued v27 equivalents into the same CoreUI state, making otherwise equivalent v26 and v27 documents indistinguishable after compilation. Compiler provenance therefore remains separate from capability classification and does not raise the selected output version. If the resolved stack uses only baseline capabilities, Recompose reconstructs it as v26 even when its containing CAR was compiled by Xcode 27.
+
+The capability table will be extended when a later specification introduces new behavior. The selected version is always the maximum of the minimum versions required by the observed capabilities, rather than the result of a chain of compiler-version assumptions. An unknown property or value that may require a newer specification causes reconstruction to fail visibly instead of being discarded or written into an older document.
 
 ## Compiled order
 
@@ -208,7 +247,7 @@ Known preset names:
 - `system-light`
 - `system-dark`
 
-The name is rendering data. Do not reduce these presets to their resolved color components.
+The name is rendering data. Recompose preserves these presets rather than reducing them to their resolved color components.
 
 Validated `system-dark` result:
 
@@ -232,7 +271,7 @@ fill-specializations = [
 ]
 ```
 
-Always retain the explicit Dark root specialization, even when its resolved value equals Default. Omitting Dark asks Icon Composer to supply its automatic system Dark background. Tintable can inherit Dark when equal.
+Recompose always retains the explicit Dark root specialization, even when its resolved value equals Default. Omitting Dark asks Icon Composer to supply its automatic system Dark background. Tintable can inherit Dark when equal.
 
 ## Group record
 
@@ -269,7 +308,7 @@ Observed values include:
 - translucency `0...0.9`;
 - inside and outside specular placement.
 
-Do not clamp material numbers to UI-looking ranges.
+Recompose preserves material numbers without clamping them to UI-looking ranges.
 
 ### Specular mapping
 
@@ -281,6 +320,14 @@ hasSpecular == true, placement 2 -> "outside"
 ```
 
 Boolean `false` is required for the disabled state. The string `"none"` was accepted structurally but produced unwanted highlights and dark outlines. Manual comparison confirmed that `false` removed the defect.
+
+> **v26 compatibility:** A disabled specular effect is represented explicitly as Boolean `false`. A different state, enabled specular with placement `0`, is represented by omitting `specular` so the v26 toolchain supplies its enabled default behavior. The `automatic`, `inside`, and `outside` values require v27; enabled nonzero placements therefore cannot be represented by a v26 reconstruction.
+
+### Refractivity mapping
+
+The `refractionHeight` and `refractionStrength` mappings above require v27 and the document's root `refractivity` feature declaration.
+
+> **v26 compatibility:** v26 documents omit refractivity. All groups in the audited v26 probe inputs resolved with zero refraction values, so omission preserves the observed source semantics. A nonzero v26 refraction value would be unsupported evidence and would cause reconstruction to fail rather than being silently discarded.
 
 ## Leaf records
 
@@ -303,13 +350,13 @@ The audit contained 204 logical leaf slots per appearance and no third leaf clas
 | `blurStrength` | retained in the manifest |
 | raster `fixedFrame` | retained in the manifest |
 
-Corresponding appearance slots may resolve to different filenames or media types. Compare source bytes and emit `image-name-specializations` when the resolved assets differ.
+Corresponding appearance slots may resolve to different filenames or media types. Recompose compares source bytes and emits `image-name-specializations` when the resolved assets differ.
 
 Nine audited stacks swapped artwork between appearances. One Xcode Intelligence slot changed from vector to raster in Dark.
 
 ## Rendition diagnostics
 
-Retain for each lookup when available:
+The manifest retains the following values for each lookup when available:
 
 - runtime class;
 - `data` and `srcData` lengths;
@@ -323,6 +370,15 @@ Retain for each lookup when available:
 
 These values are manifest diagnostics, not authored fields.
 
+### Compiler canonicalization
+
+Compilation may change representational details without establishing a visual-fidelity defect:
+
+- Xcode 26.5 and 26.6 converted an early-v26 `zip` raster rendition to `deepmap2`; equal-channel RGB source data could also be represented as Gray. The decoded comparison was pixel-identical or differed by at most one 8-bit color-channel value in the tested appearances.
+- Xcode 26.5 and 26.6 both omitted the same fully transparent, zero-opacity leaf from a compiled stack.
+
+These transformations predate v27 and were identical at the tested Xcode 26.5/26.6 boundary. Recompose preserves the representable authored source and does not attempt to reproduce compiler-private encoding choices or restore a leaf the compiler deliberately removes unless a rendered difference is demonstrated.
+
 ## Appearance alignment
 
 Current assembly requires:
@@ -333,7 +389,7 @@ Current assembly requires:
 
 Leaf class, filename, and bytes are allowed to differ.
 
-For ordinary properties, synthesize specializations from the three effective values:
+For ordinary properties, Recompose synthesizes specializations from the three effective values:
 
 ```text
 if Default == Dark and Dark == Tinted:
@@ -361,7 +417,7 @@ The root background uses the separate rule above.
 | 8 | `soft-light` |
 | 9 | `hard-light` |
 
-Apply the mapping to groups and leaves, including appearance specializations. Reject other Core Graphics modes instead of emitting an invalid `.icon` token.
+Recompose applies the mapping to groups and leaves, including appearance specializations. Other Core Graphics modes cause assembly to fail instead of producing an invalid `.icon` token.
 
 ## Colors and fills
 
@@ -375,7 +431,7 @@ Color-space mapping:
 | `kCGColorSpaceExtendedGray` | `extended-gray` |
 | `kCGColorSpaceGenericGrayGamma2_2` | `gray` |
 
-Serialize all components, including alpha:
+Serialization includes all components, including alpha:
 
 ```text
 token:component,component,...
@@ -392,7 +448,7 @@ Current fill mappings:
 | type `0`, one-color gradient | `automatic-gradient` |
 | type `1`, two-color gradient | `linear-gradient` plus start/stop orientation |
 
-Branch on the numeric CoreUI gradient type rather than color count. Missing, malformed, and unknown types fail explicitly instead of being approximated as another fill. Preserve gradient colors, stops, points, numeric type, and name in the manifest even when the public authored form uses only part of that data.
+Recompose branches on the numeric CoreUI gradient type rather than color count. Missing, malformed, and unknown types cause an explicit failure instead of being approximated as another fill. The manifest preserves gradient colors, stops, points, numeric type, and name even when the public authored form uses only part of that data.
 
 The public `automatic-gradient` form has no known orientation field. Two Screen Sharing layers therefore recompile with the default end point instead of their unusual source end point. This is tracked in Automatic-gradient orientation.
 
@@ -400,13 +456,13 @@ The public `automatic-gradient` form has no known orientation field. Two Screen 
 
 For `CUINamedLayerVectorSVGImage`:
 
-1. Read the Core Graphics SVG document from `svgDocument`.
-2. Resolve `CGSVGDocumentWriteToData`.
-3. Serialize into mutable data.
-4. Reject a missing document, symbol, or empty result.
-5. Parse the serialized SVG `viewBox` for intrinsic width and height.
+1. Extraction reads the Core Graphics SVG document from `svgDocument`.
+2. It resolves `CGSVGDocumentWriteToData`.
+3. The document is serialized into mutable data.
+4. A missing document, symbol, or empty result causes extraction to fail.
+5. The serialized SVG `viewBox` supplies the intrinsic width and height.
 
-Do not copy raw rendition `data`/`srcData` as SVG. Compiled vectors are CSI/`ISTC` data; the Core Graphics document is the serialization source.
+Raw rendition `data`/`srcData` is not copied as SVG. Compiled vectors are CSI/`ISTC` data; the Core Graphics document is the serialization source.
 
 The serialized SVG is equivalent source artwork, not the original byte stream.
 
@@ -414,10 +470,10 @@ The serialized SVG is equivalent source artwork, not the original byte stream.
 
 For `CUINamedLayerImage`:
 
-1. Read the resolved `CGImage`.
-2. Encode it as PNG with ImageIO.
-3. Record intrinsic size and `fixedFrame`.
-4. Reject a null image or failed/empty destination.
+1. Extraction reads the resolved `CGImage`.
+2. ImageIO encodes it as PNG.
+3. The manifest records intrinsic size and `fixedFrame`.
+4. A null image or failed or empty destination causes extraction to fail.
 
 This does not preserve original compression, ancillary metadata, encoded bytes, or unselected rendition alternatives.
 
@@ -445,9 +501,9 @@ tx = x + 0.5 + scaledWidth / 2 - 512
 ty = y + 0.5 + scaledHeight / 2 - 512
 ```
 
-When no uniform-scale interval exists, use the axis candidate with the lower opposite-axis residual and reject residuals above `1.1` points. Omit `position` when the extracted frame is consistent with Icon Composer's centered unit-scale default rather than inventing an explicit transform.
+When no uniform-scale interval exists, Recompose uses the axis candidate with the lower opposite-axis residual and rejects residuals above `1.1` points. It omits `position` when the extracted frame is consistent with Icon Composer's centered unit-scale default rather than inventing an explicit transform.
 
-Emit:
+The resulting document form is:
 
 ```json
 {
@@ -456,7 +512,7 @@ Emit:
 }
 ```
 
-Use raster intrinsic size or the SVG `viewBox`. Do not default non-square vectors to 1024 × 1024.
+Geometry uses the raster intrinsic size or SVG `viewBox`. Non-square vectors do not default to 1024 × 1024.
 
 One Activity Monitor glow uses a square `1024×1024` source with a compiled `2229×2228` frame. Icon Composer exposes only one uniform scale, and no value can reproduce those unequal dimensions from a square source under the observed rounding rule. Recompose preserves the closest representable frame. This is an accepted public-format limitation, not an open geometry defect.
 
@@ -473,9 +529,9 @@ The current lookup selects one effective value for gamut, locale, and layout dir
 
 Investigations needed to close or extend these limits are in the backlog.
 
-## Assembly failures
+## Assembly failure conditions
 
-Abort instead of silently changing the document when:
+Assembly stops instead of silently changing the document when:
 
 - an appearance cannot be resolved;
 - appearance trees cannot be aligned;
@@ -487,29 +543,29 @@ Abort instead of silently changing the document when:
 - an asset reference escapes `Assets/`;
 - the output package already exists.
 
-Preserve the extraction manifest when assembly stops.
+The extraction manifest remains available when assembly stops.
 
 ## Regression procedure
 
-For discovery or extraction changes:
+Discovery and extraction regressions cover:
 
-1. Run the 36-CAR audit set read-only.
-2. Confirm the same 38 logical names, including zero-stack and multi-stack catalogs.
-3. Resolve all three appearances for every stack.
-4. Compare stack/group/leaf counts, classes, names, conditions, and rendition diagnostics.
-5. Check appearance-specific asset bytes and media types.
-6. Check P3, locale, and direction-bearing cases separately.
+1. A read-only run over the 36-CAR audit set.
+2. Confirmation of the same 38 logical names, including zero-stack and multi-stack catalogs.
+3. Resolution of all three appearances for every stack.
+4. Comparison of stack, group, and leaf counts, classes, names, conditions, and rendition diagnostics.
+5. Comparison of appearance-specific asset bytes and media types.
+6. Separate coverage of P3, locale, and direction-bearing cases.
 
-For mapping or assembly changes:
+Mapping and assembly regressions cover:
 
-1. Extract into a fresh directory.
-2. Assemble into a new `.icon` path.
-3. Validate package references and JSON.
-4. Open or export with the exact Icon Composer executable under test.
-5. Compile through the intended Xcode generation.
-6. Read the compiled CAR back through CoreUI.
-7. Compare Default, Dark, and Tintable structures.
-8. Compare the compiled icon under the same system renderer as the source.
+1. Extraction into a fresh directory.
+2. Assembly into a new `.icon` path.
+3. Validation of package references and JSON.
+4. Opening or export with the exact Icon Composer executable under test.
+5. Compilation through the intended Xcode generation.
+6. CoreUI read-back of the compiled CAR.
+7. Comparison of Default, Dark, and Tintable structures.
+8. Comparison of the compiled icon under the same system renderer as the source.
 
 Pipeline commands:
 
@@ -518,7 +574,7 @@ coreui-icon-extract /path/to/Assets.car LOGICAL_NAME /fresh/extraction
 icon-recreate /fresh/extraction/manifest.json /fresh/extraction/Assets /output/Example.icon
 ```
 
-Use a fresh extraction directory, pass the `Assets/` subdirectory rather than the extraction root, and do not overwrite an existing `.icon` package implicitly.
+The procedure uses a fresh extraction directory and passes the `Assets/` subdirectory rather than the extraction root. Recompose does not overwrite an existing `.icon` package implicitly.
 
 Focused regression cases:
 

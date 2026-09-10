@@ -13,7 +13,7 @@
 - Keep documentation as light as possible. Avoid duplicate explanations, documents that must be synchronized, and unnecessary indexes or cross-reference maintenance.
 - `docs/backlog/` contains one discrete project brief per active item. Delete a brief when work on that item begins; preserve settled results only in the appropriate durable specification or research record.
 - `docs/specs/` contains the durable current icon-system specifications. Keep definitions with the specification that needs them rather than creating additional reference layers.
-- `docs/research/` contains point-in-time research records and is not a collection of living specifications. `docs/tahoe-support.md` is the sole living Tahoe record and the primary compatibility workstream.
+- `docs/research/` contains point-in-time research records and is not a collection of living specifications. Current v26 compatibility rules belong beside the affected v27 behavior in the two documents under `docs/specs/`; the completed Tahoe investigation is preserved in `docs/research/tahoe-support-audit.md`.
 - Make only explicitly requested documentation changes. Flag stale links, inconsistencies, possible consolidation, and other adjacent cleanup for the user instead of changing them without authorization.
 
 ## Application architecture
