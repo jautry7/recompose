@@ -11,10 +11,10 @@ The examples below use `recompose` for brevity. This assumes that the tool is av
 ## Usage
 
 ```text
-recompose CATALOG [--asset NAME] [--output OUTPUT.icon]
-recompose reconstruct CATALOG [--asset NAME] [--output OUTPUT.icon]
+recompose CATALOG [--asset NAME] [--output OUTPUT.icon] [--generation 26|27]
+recompose reconstruct CATALOG [--asset NAME] [--output OUTPUT.icon] [--generation 26|27]
 recompose extract CATALOG [--asset NAME] [--output DIRECTORY]
-recompose assemble DIRECTORY [--output OUTPUT.icon]
+recompose assemble DIRECTORY [--output OUTPUT.icon] [--generation 26|27]
 recompose list CATALOG [--json]
 ```
 
@@ -32,7 +32,7 @@ Runs the complete reconstruction pipeline. This is shorthand for `recompose reco
 ```text
 recompose reconstruct CATALOG
 ```
-Discovers an icon stack, extracts its contents, and creates an editable Icon Composer document. Unless `--output` is provided, the document is written to the current directory as `<asset-name>.icon`.
+Discovers an icon stack, extracts its contents, and creates an editable Icon Composer document. Recompose selects the earliest specification capable of representing every resolved material value unless `--generation` supplies an explicit version. Unless `--output` is provided, the document is written to the current directory as `<asset-name>.icon`.
 
 ```text
 recompose extract CATALOG
@@ -42,12 +42,12 @@ Extracts an icon stack without assembling an Icon Composer document. Unless `--o
 ```text
 recompose assemble DIRECTORY
 ```
-Creates an Icon Composer document from a previously extracted directory. `DIRECTORY` must contain a supported `manifest.json` and its accompanying `Assets/` directory. Unless `--output` is provided, the document is written to the current directory as `<asset-name>.icon`.
+Creates an Icon Composer document from a previously extracted directory. `DIRECTORY` must contain a supported `manifest.json` and its accompanying `Assets/` directory. Recompose selects the earliest compatible specification unless `--generation` supplies an explicit version. Unless `--output` is provided, the document is written to the current directory as `<asset-name>.icon`.
 
 ```text
 recompose list CATALOG
 ```
-Lists the logical `IconImageStack` assets found in the catalog.
+Lists the logical `IconImageStack` assets found in the catalog and the minimum document specification required by each stack. Each record in the JSON form contains `name` and `minimumGeneration` fields.
 
 ## Options
 
@@ -62,6 +62,12 @@ Reconstructs or extracts the `IconImageStack` with the specified name. This opti
 ```
 
 Sets the output document or extraction-directory path. Recompose will not overwrite an existing output.
+
+```text
+--generation 26|27
+```
+
+Overrides automatic minimum-version selection for reconstruction or assembly. Version 26 can be selected only when every observed capability is representable by v26. Version 27 can represent the complete currently supported material vocabulary. This option is not accepted by `extract` or `list`.
 
 ```text
 --json

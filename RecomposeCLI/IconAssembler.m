@@ -168,6 +168,51 @@ static NSDictionary *RefractivityValue(NSDictionary *group) {
     };
 }
 
+static RCIconGeneration MaxGeneration(RCIconGeneration left, RCIconGeneration right) {
+    return left > right ? left : right;
+}
+
+RCIconGeneration RCMinimumIconGenerationForGroupRecord(NSDictionary *group) {
+    double depth = [group[@"refractionHeight"] doubleValue];
+    double strength = [group[@"refractionStrength"] doubleValue];
+    if (!isfinite(depth) || !isfinite(strength)) {
+        [NSException raise:@"UnsupportedRefractivity"
+                    format:@"Refractivity values must be finite: %@", group];
+    }
+
+    RCIconGeneration generation = RCIconGeneration26;
+    if (depth != 0.0 || strength != 0.0) {
+        generation = MaxGeneration(generation, RCIconGeneration27);
+    }
+
+    if ([group[@"hasSpecular"] boolValue]) {
+        NSInteger placement = [group[@"specularPlacement"] integerValue];
+        if (placement == 1 || placement == 2) {
+            generation = MaxGeneration(generation, RCIconGeneration27);
+        } else if (placement != 0) {
+            [NSException raise:@"UnsupportedSpecularPlacement"
+                        format:@"Unsupported placement: %@", group[@"specularPlacement"]];
+        }
+    }
+    return generation;
+}
+
+RCIconGeneration RCMinimumIconGenerationForManifest(NSDictionary *manifest) {
+    NSDictionary *appearances = manifest[@"appearances"];
+    RCIconGeneration generation = RCIconGeneration26;
+    for (NSDictionary *appearance in [appearances allValues]) {
+        NSArray *layers = appearance[@"layers"];
+        for (NSUInteger index = 1; index < layers.count; index++) {
+            NSDictionary *group = layers[index];
+            generation = MaxGeneration(
+                generation,
+                RCMinimumIconGenerationForGroupRecord(group)
+            );
+        }
+    }
+    return generation;
+}
+
 static NSDictionary *TranslucencyValue(NSDictionary *group) {
     double value = [group[@"translucency"] doubleValue];
     return @{ @"enabled": (value != 0.0) ? @YES : @NO, @"value": group[@"translucency"] };
@@ -421,6 +466,13 @@ int RCAssembleIcon(NSString *manifestPath,
         if (![manifest isKindOfClass:[NSDictionary class]] ||
             ![manifest[@"formatVersion"] isEqual:@1]) {
             [NSException raise:@"UnsupportedManifest" format:@"Expected extraction manifest format version 1"];
+        }
+        RCIconGeneration minimumGeneration = RCMinimumIconGenerationForManifest(manifest);
+        if (generation == RCIconGenerationAutomatic) {
+            generation = minimumGeneration;
+        } else if (generation < minimumGeneration) {
+            [NSException raise:@"UnsupportedIconGeneration"
+                        format:@"The extracted icon requires v%ld or later", (long)minimumGeneration];
         }
         NSDictionary *appearances = manifest[@"appearances"];
         NSDictionary *light = appearances[@"UIAppearanceLight"];

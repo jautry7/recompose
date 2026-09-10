@@ -26,14 +26,14 @@ Recompose includes a command-line tool at `Recompose.app/Contents/Helpers/recomp
 ### Usage:
 
 ```text
-recompose Assets.car [--asset NAME] [--output OUTPUT.icon]
-recompose reconstruct Assets.car [--asset NAME] [--output OUTPUT.icon]
+recompose Assets.car [--asset NAME] [--output OUTPUT.icon] [--generation 26|27]
+recompose reconstruct Assets.car [--asset NAME] [--output OUTPUT.icon] [--generation 26|27]
 recompose extract Assets.car [--asset NAME] [--output DIRECTORY]
-recompose assemble DIRECTORY [--output OUTPUT.icon]
+recompose assemble DIRECTORY [--output OUTPUT.icon] [--generation 26|27]
 recompose list Assets.car [--json]
 ```
 
-When an asset catalog contains one icon stack, it is selected automatically. Multiple icon stacks can be selected interactively or with `--asset NAME`.
+When an asset catalog contains one icon stack, it is selected automatically. Multiple icon stacks can be selected interactively or with `--asset NAME`. Reconstruction uses the earliest compatible document specification unless `--generation` supplies an explicit version.
 
 See the [complete command-line reference](docs/cli.md) for details.
 

@@ -227,16 +227,16 @@ The audit therefore treats document acceptance and normalized compilation as ver
 
 ## Recompose implications
 
-The tested writer design is generation-specific:
+The tested writer design is specification-specific:
 
-- v27 remains the default output and retains the current material vocabulary;
+- automatic selection uses the earliest specification capable of representing every resolved material value;
 - v26 output omits newer feature declarations and refractivity, preserves explicit disabled specular, and omits legacy enabled placement `0`;
 - nonzero specular placement cannot be represented in v26 and must fail explicitly; and
 - compiler-private dead-layer and rendition-encoding choices are not reconstruction targets without evidence of a visual consequence.
 
-A working-tree implementation adds an explicit `--generation 26|27` option to reconstruction and assembly. The v26 branch applies the verified compatibility rules; the v27 branch preserves the current material behavior. At the time of this audit, that implementation is not committed and does not automatically infer output generation from `AssetStorageVersion`.
+A working-tree implementation selects the minimum required specification automatically and retains `--generation 26|27` as an explicit override for reconstruction and assembly. The v26 branch applies the verified compatibility rules, while the v27 branch preserves the current material behavior. Classification is based on resolved capabilities rather than `AssetStorageVersion`.
 
-The outstanding product decision is how a future interface chooses or explains output generation when provenance is missing or when a user deliberately wants a generation different from the source compiler. That policy must not weaken v27 fidelity or silently emit a v27 document when v26 compatibility was requested.
+The current interface appends the selected minimum specification to displayed asset names while leaving the underlying asset name and default save filename unchanged.
 
 ## Remaining unknowns
 
@@ -254,8 +254,8 @@ The outstanding product decision is how a future interface chooses or explains o
 - Maintain one living current specification, with v26 compatibility notes beside rules that changed in v27.
 - Use v26 and v27 exclusively as technical specification labels; use Icon Composer 1 and Icon Composer 2 only as product generations.
 - Preserve the distinction between document acceptance, compiled representation, and rendered appearance.
-- Select generation from compiler provenance only when `AssetStorageVersion` provides high-confidence evidence.
-- Do not infer v26 from the absence of newer material values.
+- Select the earliest specification capable of representing every observed compiled capability.
+- Keep compiler provenance separate from minimum-version classification.
 - Do not compensate for compiler canonicalization that has no demonstrated visual effect.
 - Prioritize rendering fidelity over byte-identical CAR output or reproduction of Apple's private encoding choices.
 
@@ -267,6 +267,6 @@ Relevant repository milestones are:
 
 - `da9aa03` — created the original Tahoe differences investigation;
 - `886c2e5` — documented the verified HomeKit material behavior and corrected Logic result; and
-- the current uncommitted writer changes — add explicit v26/v27 generation output and were used to produce the seven-document probe.
+- `05f2eba` — added explicit v26/v27 generation output and consolidated the Tahoe pipeline evidence.
 
 Commit `af5ee85` repeats the Tahoe-documentation subject but contains only an unrelated Xcode asset-tag project change; it is not evidence for the writer implementation.

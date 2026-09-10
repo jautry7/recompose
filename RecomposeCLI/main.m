@@ -14,9 +14,8 @@ static const int RCOutputExit = 73;
 static void PrintUsage(void) {
     fprintf(stderr,
             "usage:\n"
-            "  recompose Assets.car [--asset NAME] [--output OUTPUT.icon]\n"
             "  recompose Assets.car [--asset NAME] [--output OUTPUT.icon] [--generation 26|27]\n"
-            "  recompose reconstruct Assets.car [--asset NAME] [--output OUTPUT.icon]\n"
+            "  recompose reconstruct Assets.car [--asset NAME] [--output OUTPUT.icon] [--generation 26|27]\n"
             "  recompose extract Assets.car [--asset NAME] [--output DIRECTORY]\n"
             "  recompose assemble DIRECTORY [--output OUTPUT.icon] [--generation 26|27]\n"
             "  recompose list Assets.car [--json]\n");
@@ -56,6 +55,15 @@ static NSArray<NSString *> *Discover(NSString *catalogPath) {
         fprintf(stderr, "Unable to inspect catalog: %s\n", error.localizedDescription.UTF8String);
     }
     return names;
+}
+
+static NSArray<NSDictionary *> *DiscoverRecords(NSString *catalogPath) {
+    NSError *error = nil;
+    NSArray<NSDictionary *> *records = RCDiscoverIconStackRecords(catalogPath, &error);
+    if (records == nil) {
+        fprintf(stderr, "Unable to inspect catalog: %s\n", error.localizedDescription.UTF8String);
+    }
+    return records;
 }
 
 static NSString *SelectAsset(NSArray<NSString *> *names, NSString *requestedName) {
@@ -125,23 +133,22 @@ static NSString *ManifestAssetName(NSString *extractionDirectory) {
 }
 
 static int RunList(NSString *catalogPath, BOOL json) {
-    NSArray<NSString *> *names = Discover(catalogPath);
-    if (names == nil) {
+    NSArray<NSDictionary *> *records = DiscoverRecords(catalogPath);
+    if (records == nil) {
         return 1;
     }
     if (json) {
-        NSMutableArray *records = [NSMutableArray arrayWithCapacity:names.count];
-        for (NSString *name in names) {
-            [records addObject:@{@"name": name}];
-        }
         return WriteJSON(@{@"formatVersion": @1, @"iconStacks": records}) ? 0 : 1;
     }
-    if (names.count == 0) {
+    if (records.count == 0) {
         printf("No icon stacks found.\n");
         return 0;
     }
-    for (NSUInteger index = 0; index < names.count; index++) {
-        printf("%lu. %s\n", (unsigned long)index + 1, names[index].UTF8String);
+    for (NSUInteger index = 0; index < records.count; index++) {
+        NSDictionary *record = records[index];
+        printf("%lu. %s (%ld)\n", (unsigned long)index + 1,
+               [record[@"name"] UTF8String],
+               (long)[record[@"minimumGeneration"] integerValue]);
     }
     return 0;
 }
@@ -268,7 +275,8 @@ int main(int argc, const char *argv[]) {
             NSString *inputPath = @(argv[inputIndex]);
             NSString *assetName = nil;
             NSString *outputPath = nil;
-            RCIconGeneration generation = RCIconGeneration27;
+            RCIconGeneration generation = RCIconGenerationAutomatic;
+            BOOL generationSpecified = NO;
             BOOL json = NO;
             for (NSInteger index = inputIndex + 1; index < argc; index++) {
                 NSString *argument = @(argv[index]);
@@ -284,6 +292,7 @@ int main(int argc, const char *argv[]) {
                     if ([argument isEqualToString:@"--asset"]) {
                         assetName = @(argv[index]);
                     } else if ([argument isEqualToString:@"--generation"]) {
+                        generationSpecified = YES;
                         NSString *value = @(argv[index]);
                         if ([value isEqualToString:@"26"]) {
                             generation = RCIconGeneration26;
@@ -301,7 +310,7 @@ int main(int argc, const char *argv[]) {
             }
 
             if ([command isEqualToString:@"list"]) {
-                if (assetName || outputPath || generation != RCIconGeneration27) {
+                if (assetName || outputPath || generationSpecified) {
                     fprintf(stderr, "list accepts only the --json option.\n");
                     return RCUsageExit;
                 }
@@ -312,6 +321,10 @@ int main(int argc, const char *argv[]) {
                 return RCUsageExit;
             }
             if ([command isEqualToString:@"extract"]) {
+                if (generationSpecified) {
+                    fprintf(stderr, "extract does not accept --generation.\n");
+                    return RCUsageExit;
+                }
                 return RunExtract(inputPath, assetName, outputPath);
             }
             if ([command isEqualToString:@"assemble"]) {

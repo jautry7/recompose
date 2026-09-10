@@ -177,7 +177,7 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
                 symbolName: "checkmark.circle",
                 symbolColor: .systemGreen,
                 title: "Icon recomposed",
-                message: "Identified asset name: \(name)",
+                message: "Identified asset name: \(displayName(for: name))",
                 showsSaveButton: true
             )
         case .multipleIcons(let names):
@@ -320,8 +320,16 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         let popup = NSPopUpButton(frame: .zero, pullsDown: false)
         // AppKit calls the UI kit's medium control size "regular".
         popup.controlSize = .regular
-        popup.addItems(withTitles: names)
-        popup.selectItem(withTitle: selectedIconName ?? names[0])
+        for name in names {
+            popup.addItem(withTitle: displayName(for: name))
+            popup.lastItem?.representedObject = name
+        }
+        let selectedName = selectedIconName ?? names[0]
+        if let selectedIndex = popup.itemArray.firstIndex(where: {
+            ($0.representedObject as? String) == selectedName
+        }) {
+            popup.selectItem(at: selectedIndex)
+        }
         popup.target = self
         popup.action = #selector(selectIcon(_:))
 
@@ -438,7 +446,8 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
     }
 
     @objc private func selectIcon(_ sender: NSPopUpButton) {
-        guard let session, let name = sender.selectedItem?.title else { return }
+        guard let session,
+              let name = sender.selectedItem?.representedObject as? String else { return }
         selectedIconName = name
         render(.multipleIcons(session.iconNames))
         prepareIcon(named: name, in: session)
@@ -478,5 +487,12 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         let sanitized = name.unicodeScalars.map { allowed.contains($0) ? Character(String($0)) : "_" }
         let result = String(sanitized)
         return result.isEmpty ? "icon" : result
+    }
+
+    private func displayName(for assetName: String) -> String {
+        guard let minimumGeneration = session?.minimumGenerations[assetName] else {
+            return assetName
+        }
+        return "\(assetName) (\(minimumGeneration))"
     }
 }

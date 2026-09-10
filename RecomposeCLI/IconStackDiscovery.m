@@ -1,4 +1,5 @@
 #import "IconStackDiscovery.h"
+#import "IconAssembler.h"
 
 #import <dlfcn.h>
 
@@ -6,7 +7,6 @@ static NSString *const RCDiscoveryErrorDomain = @"RecomposeDiscovery";
 
 @interface RCDiscoveryCatalog : NSObject
 - (instancetype)initWithURL:(NSURL *)url error:(NSError **)error;
-- (NSArray<NSString *> *)appearanceNames;
 - (void)enumerateNamedLookupsUsingBlock:(void (^)(id lookup, BOOL *stop))block;
 - (id)iconLayerStackWithName:(NSString *)name
                  scaleFactor:(double)scale
@@ -20,6 +20,17 @@ static NSString *const RCDiscoveryErrorDomain = @"RecomposeDiscovery";
 @interface RCDiscoveryLookup : NSObject
 - (NSString *)name;
 - (NSString *)renditionName;
+@end
+
+@interface RCDiscoveryIconLayerStack : NSObject
+- (NSArray *)layers;
+@end
+
+@interface RCDiscoveryIconLayerGroup : NSObject
+- (BOOL)hasSpecular;
+- (double)refractionHeight;
+- (double)refractionStrength;
+- (NSInteger)specularPlacement;
 @end
 
 static NSError *RCDiscoveryError(NSInteger code, NSString *description) {
@@ -45,7 +56,7 @@ static void RCAddCandidate(NSMutableSet<NSString *> *candidates, NSString *name)
     }
 }
 
-NSArray<NSString *> *RCDiscoverIconStackNames(NSString *catalogPath, NSError **error) {
+NSArray<NSDictionary *> *RCDiscoverIconStackRecords(NSString *catalogPath, NSError **error) {
     void *handle = dlopen("/System/Library/PrivateFrameworks/CoreUI.framework/CoreUI", RTLD_NOW | RTLD_LOCAL);
     if (handle == NULL) {
         if (error) {
@@ -105,44 +116,85 @@ NSArray<NSString *> *RCDiscoverIconStackNames(NSString *catalogPath, NSError **e
         return nil;
     }
 
-    NSMutableOrderedSet<NSString *> *appearanceNames = [NSMutableOrderedSet orderedSetWithArray:@[
-        @"UIAppearanceLight",
-        @"NSAppearanceNameAqua",
-        @"UIAppearanceDark",
-        @"NSAppearanceNameDarkAqua",
-        @"ISAppearanceTintable"
-    ]];
-    for (NSString *appearance in [catalog appearanceNames] ?: @[]) {
-        if (appearance.length > 0) {
-            [appearanceNames addObject:appearance];
-        }
-    }
-
-    NSMutableArray<NSString *> *iconNames = [NSMutableArray array];
+    NSArray<NSArray<NSString *> *> *normalizedAppearances = @[
+        @[ @"UIAppearanceLight", @"NSAppearanceNameAqua" ],
+        @[ @"UIAppearanceDark", @"NSAppearanceNameDarkAqua" ],
+        @[ @"ISAppearanceTintable" ]
+    ];
+    NSMutableArray<NSDictionary *> *iconRecords = [NSMutableArray array];
     for (NSString *candidate in candidates) {
         BOOL resolved = NO;
-        for (NSString *appearance in appearanceNames) {
-            id stack = [catalog iconLayerStackWithName:candidate
-                                           scaleFactor:1.0
-                                           deviceIdiom:0
-                                         deviceSubtype:0
-                                          displayGamut:0
-                                        appearanceName:appearance
-                                                locale:nil];
-            if (stack != nil) {
+        RCIconGeneration generation = RCIconGeneration26;
+        @try {
+            for (NSArray<NSString *> *aliases in normalizedAppearances) {
+                RCDiscoveryIconLayerStack *stack = nil;
+                for (NSString *appearance in aliases) {
+                    stack = [catalog iconLayerStackWithName:candidate
+                                               scaleFactor:1.0
+                                               deviceIdiom:0
+                                             deviceSubtype:0
+                                              displayGamut:0
+                                            appearanceName:appearance
+                                                    locale:nil];
+                    if (stack != nil) {
+                        break;
+                    }
+                }
+                if (stack == nil) {
+                    continue;
+                }
                 resolved = YES;
-                break;
+                for (id layer in [stack layers]) {
+                    if (![layer isKindOfClass:NSClassFromString(@"CUINamedIconLayerGroup")]) {
+                        continue;
+                    }
+                    RCDiscoveryIconLayerGroup *group = layer;
+                    RCIconGeneration groupGeneration = RCMinimumIconGenerationForGroupRecord(@{
+                        @"hasSpecular": @([group hasSpecular]),
+                        @"specularPlacement": @([group specularPlacement]),
+                        @"refractionHeight": @([group refractionHeight]),
+                        @"refractionStrength": @([group refractionStrength])
+                    });
+                    generation = MAX(generation, groupGeneration);
+                }
             }
+        } @catch (NSException *exception) {
+            if (error) {
+                *error = RCDiscoveryError(
+                    5,
+                    [NSString stringWithFormat:@"Unable to classify %@: %@",
+                     candidate, exception.reason ?: exception.name]
+                );
+            }
+            dlclose(handle);
+            return nil;
         }
         if (resolved) {
-            [iconNames addObject:candidate];
+            [iconRecords addObject:@{
+                @"name": candidate,
+                @"minimumGeneration": @(generation)
+            }];
         }
     }
 
-    [iconNames sortUsingComparator:^NSComparisonResult(NSString *left, NSString *right) {
-        NSComparisonResult insensitive = [left caseInsensitiveCompare:right];
-        return insensitive == NSOrderedSame ? [left compare:right] : insensitive;
+    [iconRecords sortUsingComparator:^NSComparisonResult(NSDictionary *left, NSDictionary *right) {
+        NSString *leftName = left[@"name"];
+        NSString *rightName = right[@"name"];
+        NSComparisonResult insensitive = [leftName caseInsensitiveCompare:rightName];
+        return insensitive == NSOrderedSame ? [leftName compare:rightName] : insensitive;
     }];
     dlclose(handle);
-    return iconNames;
+    return iconRecords;
+}
+
+NSArray<NSString *> *RCDiscoverIconStackNames(NSString *catalogPath, NSError **error) {
+    NSArray<NSDictionary *> *records = RCDiscoverIconStackRecords(catalogPath, error);
+    if (records == nil) {
+        return nil;
+    }
+    NSMutableArray<NSString *> *names = [NSMutableArray arrayWithCapacity:records.count];
+    for (NSDictionary *record in records) {
+        [names addObject:record[@"name"]];
+    }
+    return names;
 }

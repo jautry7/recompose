@@ -3,18 +3,21 @@ import Foundation
 struct RecompositionSession: Sendable {
     let id: UUID
     let iconNames: [String]
+    let minimumGenerations: [String: Int]
     let catalogURL: URL
     let workspaceURL: URL
 }
 
 struct RecompositionOutput: Sendable {
     let assetName: String
+    let minimumGeneration: Int
     let iconURL: URL
 }
 
 enum RecompositionEngine {
     private nonisolated struct IconStackRecord: Decodable {
         let name: String
+        let minimumGeneration: Int
     }
 
     private nonisolated struct ListResponse: Decodable {
@@ -59,15 +62,20 @@ enum RecompositionEngine {
             let data = try runCLI(arguments: ["list", stagedCatalogURL.path, "--json"])
             let response = try JSONDecoder().decode(ListResponse.self, from: data)
             let names = response.iconStacks.map(\.name)
+            let minimumGenerations = Dictionary(
+                uniqueKeysWithValues: response.iconStacks.map { ($0.name, $0.minimumGeneration) }
+            )
             guard response.formatVersion == 1,
                   names.allSatisfy({ !$0.isEmpty }),
-                  Set(names).count == names.count else {
+                  Set(names).count == names.count,
+                  response.iconStacks.allSatisfy({ $0.minimumGeneration == 26 || $0.minimumGeneration == 27 }) else {
                 throw EngineError.invalidListResponse
             }
 
             return RecompositionSession(
                 id: UUID(),
                 iconNames: names,
+                minimumGenerations: minimumGenerations,
                 catalogURL: stagedCatalogURL,
                 workspaceURL: workspaceURL
             )
@@ -82,6 +90,9 @@ enum RecompositionEngine {
         assetName: String
     ) throws -> RecompositionOutput {
         guard session.iconNames.contains(assetName) else {
+            throw EngineError.invalidListResponse
+        }
+        guard let minimumGeneration = session.minimumGenerations[assetName] else {
             throw EngineError.invalidListResponse
         }
 
@@ -104,7 +115,11 @@ enum RecompositionEngine {
             throw EngineError.missingOutput
         }
 
-        return RecompositionOutput(assetName: assetName, iconURL: iconURL)
+        return RecompositionOutput(
+            assetName: assetName,
+            minimumGeneration: minimumGeneration,
+            iconURL: iconURL
+        )
     }
 
     nonisolated static func remove(_ session: RecompositionSession) {
