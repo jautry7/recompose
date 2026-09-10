@@ -205,7 +205,14 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
 
     private func makeDropPrompt(isHovering: Bool) -> NSView {
         let container = NSView()
-        let symbolName = isHovering ? "arrow.down.circle" : "square.dashed.micro"
+        let symbolName: String
+        if isHovering {
+            symbolName = "arrow.down.circle"
+        } else if NSImage(systemSymbolName: "square.dashed.micro", accessibilityDescription: nil) != nil {
+            symbolName = "square.dashed.micro"
+        } else {
+            symbolName = "square.dashed"
+        }
         let symbol = makeSymbolView(
             named: symbolName,
             pointSize: 120,
