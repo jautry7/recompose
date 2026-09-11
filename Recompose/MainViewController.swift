@@ -21,13 +21,29 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         static let introCenterYOffset: CGFloat = -4
         static let successLeading: CGFloat = 48
         static let successCenterYOffset: CGFloat = 12
-        static let successSectionSpacing: CGFloat = 14
+        static let successEyebrowSpacing: CGFloat = 14
         static let successTitleSpacing: CGFloat = 8
         static let successDetailSpacing: CGFloat = 5
         static let assetSelectionBottomSpacing: CGFloat = 8
         static let successButtonSpacing: CGFloat = 32
         static let documentHelpSize: CGFloat = 16
         static let documentHelpYOffset: CGFloat = 0.5
+        static let errorLeading: CGFloat = 48
+        static let errorCenterYOffset: CGFloat = 12
+        static let errorButtonSpacing: CGFloat = 32
+        static let errorButtonHorizontalSpacing: CGFloat = 12
+        static let errorEyebrowSpacing: CGFloat = 12
+        static let errorTitleSpacing: CGFloat = 8
+        static let errorBodyWidth: CGFloat = 246
+        static let noIconLeading: CGFloat = 48
+        static let noIconCenterYOffset: CGFloat = 16
+        static let noIconButtonSpacing: CGFloat = 32
+        static let noIconSymbolPointSize: CGFloat = 32
+        static let noIconSymbolLayoutWidth: CGFloat = 30
+        static let noIconSymbolSpacing: CGFloat = 16
+        static let noIconTitleSpacing: CGFloat = 4
+        static let noIconBodyWidth: CGFloat = 222
+        static let eyebrowIconSpacing: CGFloat = 3
         static let previewSize: CGFloat = 256
         static let previewButtonSpacing: CGFloat = 8
     }
@@ -36,6 +52,7 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         static let bodyKerning: CGFloat = 0.1
         static let headlineKerning: CGFloat = 0.2
         static let dropPromptKerning: CGFloat = 0.2
+        static let errorTitleLineHeight: CGFloat = 28
     }
 
     private let leftPaneView = NSView()
@@ -47,6 +64,7 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
     private var outputs: [String: RecompositionOutput] = [:]
     private var preparingNames: Set<String> = []
     private var selectedIconName: String?
+    private var lastErrorDescription: String?
     private var state: State = .resting
     private var documentVersionPopover: NSPopover?
 
@@ -117,6 +135,7 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
                     self.present(session)
                 case .failure(let error):
                     NSLog("Catalog inspection failed: %@", error.localizedDescription)
+                    self.lastErrorDescription = error.localizedDescription
                     self.render(.failure)
                 }
             }
@@ -172,6 +191,7 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
                 case .failure(let error):
                     NSLog("Recomposition failed for %@: %@", name, error.localizedDescription)
                     if self.selectedIconName == name {
+                        self.lastErrorDescription = error.localizedDescription
                         self.render(.failure)
                     }
                 }
@@ -205,23 +225,13 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         case .processing:
             replacement = makeProcessingView()
         case .noIcon:
-            replacement = makeResultView(
-                symbolName: "xmark.circle",
-                symbolColor: .tertiaryLabelColor,
-                title: "No icon found",
-                message: "This asset catalog does not appear to\ncontain an IconImageStack"
-            )
+            replacement = makeDropPrompt(isHovering: false)
         case .singleIcon:
             replacement = makeSuccessPreviewView()
         case .multipleIcons:
             replacement = makeSuccessPreviewView()
         case .failure:
-            replacement = makeResultView(
-                symbolName: "xmark.circle",
-                symbolColor: .systemRed,
-                title: "Could not process CAR file",
-                message: "Please check Console for logs"
-            )
+            replacement = makeDropPrompt(isHovering: false)
         }
 
         replacement.translatesAutoresizingMaskIntoConstraints = false
@@ -295,8 +305,18 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         case .multipleIcons(let names):
             let selectedName = selectedIconName ?? names[0]
             installSuccessContent(makeSuccessContent(assetName: selectedName, names: names))
-        default:
-            leftContentView = nil
+        case .noIcon:
+            installErrorContent(
+                makeNoIconContent(),
+                leading: Layout.noIconLeading,
+                centerYOffset: Layout.noIconCenterYOffset
+            )
+        case .failure:
+            installErrorContent(
+                makeGenericErrorContent(),
+                leading: Layout.errorLeading,
+                centerYOffset: Layout.errorCenterYOffset
+            )
         }
     }
 
@@ -314,6 +334,173 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
             )
         ])
         leftContentView = content
+    }
+
+    private func installErrorContent(
+        _ content: NSView,
+        leading: CGFloat,
+        centerYOffset: CGFloat
+    ) {
+        content.translatesAutoresizingMaskIntoConstraints = false
+        leftPaneView.addSubview(content)
+        NSLayoutConstraint.activate([
+            content.leadingAnchor.constraint(
+                equalTo: leftPaneView.leadingAnchor,
+                constant: leading
+            ),
+            content.centerYAnchor.constraint(
+                equalTo: leftPaneView.centerYAnchor,
+                constant: centerYOffset
+            )
+        ])
+        leftContentView = content
+    }
+
+    private func makeNoIconContent() -> NSView {
+        let symbol = makeSymbolView(
+            named: "xmark.circle",
+            pointSize: Layout.noIconSymbolPointSize,
+            weight: .light,
+            color: .tertiaryLabelColor,
+            accessibilityDescription: "No icon found"
+        )
+        let symbolContainer = NSView()
+        symbol.translatesAutoresizingMaskIntoConstraints = false
+        symbolContainer.addSubview(symbol)
+        NSLayoutConstraint.activate([
+            symbolContainer.widthAnchor.constraint(
+                equalToConstant: Layout.noIconSymbolLayoutWidth
+            ),
+            symbol.centerXAnchor.constraint(equalTo: symbolContainer.centerXAnchor),
+            symbol.topAnchor.constraint(equalTo: symbolContainer.topAnchor),
+            symbol.bottomAnchor.constraint(equalTo: symbolContainer.bottomAnchor)
+        ])
+        let header = makeErrorHeader(
+            title: "No icon found",
+            message: "This asset catalog does not appear to contain an IconImageStack",
+            width: Layout.noIconBodyWidth,
+            spacing: Layout.noIconTitleSpacing,
+            titleLines: 1
+        )
+
+        let information = NSStackView(views: [symbolContainer, header])
+        information.orientation = .vertical
+        information.alignment = .leading
+        information.spacing = Layout.noIconSymbolSpacing
+
+        let okayButton = NSButton(title: "OK", target: self, action: #selector(goBack))
+        configureButton(okayButton)
+
+        let content = NSStackView(views: [information, okayButton])
+        content.orientation = .vertical
+        content.alignment = .leading
+        content.spacing = Layout.noIconButtonSpacing
+        return content
+    }
+
+    private func makeGenericErrorContent() -> NSView {
+        let status = makeStatusView(
+            "Error",
+            symbolName: "xmark.circle",
+            color: .systemRed
+        )
+        let header = makeErrorHeader(
+            title: "Could not process asset catalog",
+            message: "An unknown error occurred and the CAR file could not be processed.",
+            width: Layout.errorBodyWidth,
+            spacing: Layout.errorTitleSpacing,
+            titleLines: 2,
+            titleLineHeight: Typography.errorTitleLineHeight
+        )
+
+        let information = NSStackView(views: [status, header])
+        information.orientation = .vertical
+        information.alignment = .leading
+        information.spacing = Layout.errorEyebrowSpacing
+
+        let okayButton = NSButton(title: "OK", target: self, action: #selector(goBack))
+        configureButton(okayButton)
+
+        let copyButton = NSButton(title: "Copy Error", target: self, action: #selector(copyError))
+        copyButton.isBordered = false
+        copyButton.controlSize = .extraLarge
+        copyButton.font = .systemFont(ofSize: 13)
+        copyButton.contentTintColor = .controlAccentColor
+
+        let actions = NSStackView(views: [okayButton, copyButton])
+        actions.orientation = .horizontal
+        actions.alignment = .centerY
+        actions.spacing = Layout.errorButtonHorizontalSpacing
+
+        let content = NSStackView(views: [information, actions])
+        content.orientation = .vertical
+        content.alignment = .leading
+        content.spacing = Layout.errorButtonSpacing
+        return content
+    }
+
+    private func makeErrorHeader(
+        title: String,
+        message: String,
+        width: CGFloat,
+        spacing: CGFloat,
+        titleLines: Int,
+        titleLineHeight: CGFloat? = nil
+    ) -> NSView {
+        let titleLabel = makePreferredLabel(
+            title,
+            textStyle: .largeTitle,
+            emphasized: true,
+            color: .labelColor
+        )
+        titleLabel.alignment = .left
+        titleLabel.maximumNumberOfLines = titleLines
+        titleLabel.lineBreakMode = .byWordWrapping
+        titleLabel.preferredMaxLayoutWidth = width
+        let titleText = NSMutableAttributedString(attributedString: titleLabel.attributedStringValue)
+        titleText.addAttribute(
+            .kern,
+            value: Typography.headlineKerning,
+            range: NSRange(location: 0, length: titleText.length)
+        )
+        if let titleLineHeight {
+            let paragraphStyle = NSMutableParagraphStyle()
+            paragraphStyle.minimumLineHeight = titleLineHeight
+            paragraphStyle.maximumLineHeight = titleLineHeight
+            titleText.addAttribute(
+                .paragraphStyle,
+                value: paragraphStyle,
+                range: NSRange(location: 0, length: titleText.length)
+            )
+        }
+        titleLabel.attributedStringValue = titleText
+
+        let messageLabel = makePreferredLabel(
+            message,
+            textStyle: .body,
+            color: .secondaryLabelColor
+        )
+        messageLabel.alignment = .left
+        messageLabel.maximumNumberOfLines = 2
+        messageLabel.lineBreakMode = .byWordWrapping
+        messageLabel.preferredMaxLayoutWidth = width
+        let messageText = NSMutableAttributedString(attributedString: messageLabel.attributedStringValue)
+        messageText.addAttribute(
+            .kern,
+            value: Typography.bodyKerning,
+            range: NSRange(location: 0, length: messageText.length)
+        )
+        messageLabel.attributedStringValue = messageText
+
+        let header = NSStackView(views: [titleLabel, messageLabel])
+        header.orientation = .vertical
+        header.alignment = .leading
+        header.spacing = spacing
+        NSLayoutConstraint.activate([
+            titleLabel.widthAnchor.constraint(equalToConstant: width),
+            messageLabel.widthAnchor.constraint(equalToConstant: width)
+        ])
+        return header
     }
 
     private func makeSuccessContent(assetName: String, names: [String]?) -> NSView {
@@ -368,7 +555,7 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         let information = NSStackView(views: [status, titleAndDetails])
         information.orientation = .vertical
         information.alignment = .leading
-        information.spacing = Layout.successSectionSpacing
+        information.spacing = Layout.successEyebrowSpacing
 
         let saveButton = NSButton(title: "Save Icon", target: self, action: #selector(saveIcon))
         configureButton(saveButton)
@@ -382,18 +569,22 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         return content
     }
 
-    private func makeStatusView(_ text: String) -> NSView {
+    private func makeStatusView(
+        _ text: String,
+        symbolName: String = "checkmark.circle",
+        color: NSColor = .systemGreen
+    ) -> NSView {
         let symbol = makeSymbolView(
-            named: "checkmark.circle",
+            named: symbolName,
             pointSize: 13,
             weight: .semibold,
-            color: .systemGreen,
+            color: color,
             accessibilityDescription: text
         )
         let label = makePreferredLabel(
             text,
             textStyle: .body,
-            color: .systemGreen
+            color: color
         )
         label.alignment = .left
         label.font = .systemFont(ofSize: label.font!.pointSize, weight: .medium)
@@ -408,7 +599,7 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         let row = NSStackView(views: [symbol, label])
         row.orientation = .horizontal
         row.alignment = .centerY
-        row.spacing = 3
+        row.spacing = Layout.eyebrowIconSpacing
         return row
     }
 
@@ -644,57 +835,6 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         return container
     }
 
-    private func makeResultView(
-        symbolName: String,
-        symbolColor: NSColor,
-        title: String,
-        message: String
-    ) -> NSView {
-        let container = NSView()
-        let symbol = makeSymbolView(
-            named: symbolName,
-            pointSize: 72,
-            weight: .thin,
-            color: symbolColor,
-            accessibilityDescription: title
-        )
-        let titleLabel = makeLabel(title, size: 17, weight: .semibold, color: .labelColor)
-        let messageLabel = makeLabel(message, size: 13, weight: .regular, color: .secondaryLabelColor)
-        messageLabel.maximumNumberOfLines = 2
-
-        let backButton = NSButton(title: "Back", target: self, action: #selector(goBack))
-        configureButton(backButton)
-
-        let stack = NSStackView(views: [symbol, titleLabel, messageLabel, backButton])
-        configureResultStack(stack, messageView: messageLabel, in: container)
-        constrainResultSymbol(symbol)
-        return container
-    }
-
-    private func configureResultStack(
-        _ stack: NSStackView,
-        messageView: NSView,
-        in container: NSView
-    ) {
-        stack.orientation = .vertical
-        stack.alignment = .centerX
-        stack.spacing = 6
-        stack.setCustomSpacing(24, after: messageView)
-        stack.translatesAutoresizingMaskIntoConstraints = false
-        container.addSubview(stack)
-        NSLayoutConstraint.activate([
-            stack.centerXAnchor.constraint(equalTo: container.centerXAnchor),
-            stack.centerYAnchor.constraint(equalTo: container.centerYAnchor, constant: -8)
-        ])
-    }
-
-    private func constrainResultSymbol(_ symbol: NSImageView) {
-        NSLayoutConstraint.activate([
-            symbol.widthAnchor.constraint(equalToConstant: 86),
-            symbol.heightAnchor.constraint(equalToConstant: 86)
-        ])
-    }
-
     private func makeSymbolView(
         named name: String,
         pointSize: CGFloat,
@@ -747,6 +887,7 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         outputs.removeAll()
         preparingNames.removeAll()
         selectedIconName = nil
+        lastErrorDescription = nil
     }
 
     @objc private func goBack() {
@@ -762,6 +903,13 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         prepareIcon(named: name, in: session)
     }
 
+    @objc private func copyError() {
+        guard let lastErrorDescription else { return }
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(lastErrorDescription, forType: .string)
+    }
+
     @objc private func showDocumentVersionHelp(_ sender: NSButton) {
         if let documentVersionPopover, documentVersionPopover.isShown {
             documentVersionPopover.close()
@@ -771,7 +919,6 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
 
         let explanation = NSTextField(
             wrappingLabelWithString: "Recompose uses the earliest Icon Composer document version that can represent all of this icon’s features. This prevents omitted material properties from falling back to their default values, which could alter the intended appearance."
-//            wrappingLabelWithString: "The earliest Icon Composer document version that can represent all of this icon’s features."
         )
         explanation.font = NSFont.preferredFont(forTextStyle: .body)
         explanation.textColor = .labelColor
