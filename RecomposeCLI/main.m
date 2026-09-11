@@ -153,6 +153,28 @@ static int RunList(NSString *catalogPath, BOOL json) {
     return 0;
 }
 
+static int RunInternalPreview(NSString *catalogPath,
+                              NSString *assetName,
+                              NSString *outputPath,
+                              NSString *appearanceName) {
+    RCIconPreviewAppearance appearance = RCIconPreviewAppearanceDefault;
+    if ([appearanceName isEqualToString:@"dark"]) {
+        appearance = RCIconPreviewAppearanceDark;
+    } else if ([appearanceName isEqualToString:@"tinted"]) {
+        appearance = RCIconPreviewAppearanceTinted;
+    } else if (appearanceName.length > 0 && ![appearanceName isEqualToString:@"default"]) {
+        fprintf(stderr, "_preview appearance must be default, dark, or tinted.\n");
+        return RCUsageExit;
+    }
+
+    NSError *error = nil;
+    if (!RCWriteIconPreview(catalogPath, assetName, outputPath, appearance, &error)) {
+        fprintf(stderr, "Unable to render icon preview: %s\n", error.localizedDescription.UTF8String);
+        return 1;
+    }
+    return 0;
+}
+
 static int RunExtract(NSString *catalogPath, NSString *assetName, NSString *outputPath) {
     NSArray<NSString *> *names = Discover(catalogPath);
     if (names == nil) {
@@ -263,7 +285,7 @@ int main(int argc, const char *argv[]) {
                 return 0;
             }
 
-            NSSet<NSString *> *commands = [NSSet setWithArray:@[@"list", @"extract", @"assemble", @"reconstruct"]];
+            NSSet<NSString *> *commands = [NSSet setWithArray:@[@"list", @"extract", @"assemble", @"reconstruct", @"_preview"]];
             BOOL explicitCommand = [commands containsObject:first];
             NSString *command = explicitCommand ? first : @"reconstruct";
             NSInteger inputIndex = explicitCommand ? 2 : 1;
@@ -275,6 +297,7 @@ int main(int argc, const char *argv[]) {
             NSString *inputPath = @(argv[inputIndex]);
             NSString *assetName = nil;
             NSString *outputPath = nil;
+            NSString *previewAppearanceName = nil;
             RCIconGeneration generation = RCIconGenerationAutomatic;
             BOOL generationSpecified = NO;
             BOOL json = NO;
@@ -284,6 +307,7 @@ int main(int argc, const char *argv[]) {
                     json = YES;
                 } else if ([argument isEqualToString:@"--asset"] ||
                            [argument isEqualToString:@"--output"] ||
+                           [argument isEqualToString:@"--appearance"] ||
                            [argument isEqualToString:@"--generation"]) {
                     if (++index >= argc) {
                         fprintf(stderr, "%s requires a value.\n", argument.UTF8String);
@@ -291,6 +315,8 @@ int main(int argc, const char *argv[]) {
                     }
                     if ([argument isEqualToString:@"--asset"]) {
                         assetName = @(argv[index]);
+                    } else if ([argument isEqualToString:@"--appearance"]) {
+                        previewAppearanceName = @(argv[index]);
                     } else if ([argument isEqualToString:@"--generation"]) {
                         generationSpecified = YES;
                         NSString *value = @(argv[index]);
@@ -310,7 +336,7 @@ int main(int argc, const char *argv[]) {
             }
 
             if ([command isEqualToString:@"list"]) {
-                if (assetName || outputPath || generationSpecified) {
+                if (assetName || outputPath || previewAppearanceName || generationSpecified) {
                     fprintf(stderr, "list accepts only the --json option.\n");
                     return RCUsageExit;
                 }
@@ -320,19 +346,30 @@ int main(int argc, const char *argv[]) {
                 fprintf(stderr, "--json is available only with list.\n");
                 return RCUsageExit;
             }
+            if ([command isEqualToString:@"_preview"]) {
+                if (assetName.length == 0 || outputPath.length == 0 || generationSpecified) {
+                    fprintf(stderr, "_preview requires --asset NAME and --output OUTPUT.png; --appearance is optional.\n");
+                    return RCUsageExit;
+                }
+                return RunInternalPreview(inputPath, assetName, outputPath, previewAppearanceName);
+            }
             if ([command isEqualToString:@"extract"]) {
-                if (generationSpecified) {
+                if (generationSpecified || previewAppearanceName) {
                     fprintf(stderr, "extract does not accept --generation.\n");
                     return RCUsageExit;
                 }
                 return RunExtract(inputPath, assetName, outputPath);
             }
             if ([command isEqualToString:@"assemble"]) {
-                if (assetName) {
+                if (assetName || previewAppearanceName) {
                     fprintf(stderr, "assemble does not accept --asset; the asset is recorded in manifest.json.\n");
                     return RCUsageExit;
                 }
                 return RunAssemble(inputPath, outputPath, generation);
+            }
+            if (previewAppearanceName) {
+                fprintf(stderr, "--appearance is available only with the internal preview command.\n");
+                return RCUsageExit;
             }
             return RunReconstruct(inputPath, assetName, outputPath, generation);
         } @catch (NSException *exception) {

@@ -45,7 +45,8 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         static let noIconBodyWidth: CGFloat = 222
         static let eyebrowIconSpacing: CGFloat = 3
         static let previewSize: CGFloat = 256
-        static let previewButtonSpacing: CGFloat = 8
+        static let previewButtonSpacing: CGFloat = 12
+        static let previewAppearanceSegmentWidth: CGFloat = 40
     }
 
     private enum Typography {
@@ -53,6 +54,7 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         static let headlineKerning: CGFloat = 0.2
         static let dropPromptKerning: CGFloat = 0.2
         static let errorTitleLineHeight: CGFloat = 28
+        static let previewAppearanceSymbolPointSize: CGFloat = 13
     }
 
     private let leftPaneView = NSView()
@@ -64,6 +66,7 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
     private var outputs: [String: RecompositionOutput] = [:]
     private var preparingNames: Set<String> = []
     private var selectedIconName: String?
+    private var selectedPreviewAppearance: IconPreviewAppearance = .standard
     private var lastErrorDescription: String?
     private var state: State = .resting
     private var documentVersionPopover: NSPopover?
@@ -712,28 +715,77 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
     private func makeSuccessPreviewView() -> NSView {
         let container = NSView()
 
-        let placeholder = NSBox()
-        placeholder.boxType = .custom
-        placeholder.borderWidth = 0
-        placeholder.fillColor = .tertiarySystemFill
+        let preview = NSBox()
+        preview.boxType = .custom
+        preview.borderWidth = 0
+        preview.fillColor = .clear
+
+        let output = selectedIconName.flatMap { outputs[$0] }
+        let previewURL = output?.previewURLs[selectedPreviewAppearance]
+            ?? output?.previewURLs[.standard]
+        let previewImage = previewURL.flatMap { NSImage(contentsOf: $0) }
+            ?? genericDocumentIcon()
+        let imageView = NSImageView(image: previewImage)
+        imageView.imageScaling = .scaleProportionallyUpOrDown
+        imageView.translatesAutoresizingMaskIntoConstraints = false
+        imageView.setAccessibilityLabel("Identified icon preview")
+        preview.addSubview(imageView)
+        NSLayoutConstraint.activate([
+            imageView.leadingAnchor.constraint(equalTo: preview.leadingAnchor),
+            imageView.trailingAnchor.constraint(equalTo: preview.trailingAnchor),
+            imageView.topAnchor.constraint(equalTo: preview.topAnchor),
+            imageView.bottomAnchor.constraint(equalTo: preview.bottomAnchor)
+        ])
 
         let clearButton = NSButton(title: "Clear", target: self, action: #selector(goBack))
         clearButton.bezelStyle = .rounded
         clearButton.controlSize = .large
 
-        let stack = NSStackView(views: [placeholder, clearButton])
+        var arrangedViews: [NSView] = [clearButton, preview]
+        if let output, output.previewURLs.count > 1 {
+            let appearances = IconPreviewAppearance.allCases
+            let symbolNames = ["sun.max", "moon", "circle.righthalf.filled"]
+            let symbolConfiguration = NSImage.SymbolConfiguration(
+                pointSize: Typography.previewAppearanceSymbolPointSize,
+                weight: .semibold
+            )
+            let images = symbolNames.map {
+                NSImage(systemSymbolName: $0, accessibilityDescription: nil)?
+                    .withSymbolConfiguration(symbolConfiguration) ?? NSImage()
+            }
+            let control = NSSegmentedControl(
+                images: images,
+                trackingMode: .selectOne,
+                target: self,
+                action: #selector(selectPreviewAppearance(_:))
+            )
+            control.controlSize = .large
+            control.segmentStyle = .rounded
+            control.selectedSegment = appearances.firstIndex(of: selectedPreviewAppearance) ?? 0
+            for (index, appearance) in appearances.enumerated() {
+                control.setWidth(Layout.previewAppearanceSegmentWidth, forSegment: index)
+                control.setToolTip(appearance.displayName, forSegment: index)
+                control.setEnabled(output.previewURLs[appearance] != nil, forSegment: index)
+            }
+            arrangedViews.append(control)
+        }
+        let stack = NSStackView(views: arrangedViews)
         stack.orientation = .vertical
         stack.alignment = .centerX
         stack.spacing = Layout.previewButtonSpacing
         stack.translatesAutoresizingMaskIntoConstraints = false
         container.addSubview(stack)
         NSLayoutConstraint.activate([
-            placeholder.widthAnchor.constraint(equalToConstant: Layout.previewSize),
-            placeholder.heightAnchor.constraint(equalToConstant: Layout.previewSize),
+            preview.widthAnchor.constraint(equalToConstant: Layout.previewSize),
+            preview.heightAnchor.constraint(equalToConstant: Layout.previewSize),
             stack.centerXAnchor.constraint(equalTo: container.centerXAnchor),
             stack.centerYAnchor.constraint(equalTo: container.centerYAnchor)
         ])
         return container
+    }
+
+    private func genericDocumentIcon() -> NSImage {
+        NSWorkspace.shared.icon(for: .data)
     }
 
     private func makePreferredLabel(
@@ -887,6 +939,7 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         outputs.removeAll()
         preparingNames.removeAll()
         selectedIconName = nil
+        selectedPreviewAppearance = .standard
         lastErrorDescription = nil
     }
 
@@ -901,6 +954,13 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         selectedIconName = name
         render(.multipleIcons(session.iconNames))
         prepareIcon(named: name, in: session)
+    }
+
+    @objc private func selectPreviewAppearance(_ sender: NSSegmentedControl) {
+        let appearances = IconPreviewAppearance.allCases
+        guard appearances.indices.contains(sender.selectedSegment) else { return }
+        selectedPreviewAppearance = appearances[sender.selectedSegment]
+        render(state)
     }
 
     @objc private func copyError() {
@@ -918,7 +978,7 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         }
 
         let explanation = NSTextField(
-            wrappingLabelWithString: "Recompose uses the earliest Icon Composer document version that can represent all of this icon’s features. This prevents missing properties from falling back to their default values, which could alter the intended appearance."
+            wrappingLabelWithString: "Recompose uses the earliest Icon Composer document version that can represent all of this icon’s features. This prevents missing material properties from reverting to their default values, which could alter the intended appearance."
         )
         explanation.font = NSFont.preferredFont(forTextStyle: .body)
         explanation.textColor = .labelColor

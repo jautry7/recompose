@@ -1,5 +1,19 @@
 import Foundation
 
+enum IconPreviewAppearance: String, CaseIterable, Sendable {
+    case standard = "default"
+    case dark
+    case tinted
+
+    var displayName: String {
+        switch self {
+        case .standard: "Default"
+        case .dark: "Dark"
+        case .tinted: "Tinted"
+        }
+    }
+}
+
 struct RecompositionSession: Sendable {
     let id: UUID
     let iconNames: [String]
@@ -12,6 +26,7 @@ struct RecompositionOutput: Sendable {
     let assetName: String
     let minimumGeneration: Int
     let iconURL: URL
+    let previewURLs: [IconPreviewAppearance: URL]
 }
 
 enum RecompositionEngine {
@@ -115,10 +130,36 @@ enum RecompositionEngine {
             throw EngineError.missingOutput
         }
 
+        var previewURLs: [IconPreviewAppearance: URL] = [:]
+        for appearance in IconPreviewAppearance.allCases {
+            let requestedPreviewURL = outputDirectory
+                .appendingPathComponent(UUID().uuidString)
+                .appendingPathExtension("png")
+            do {
+                _ = try runCLI(arguments: [
+                    "_preview", session.catalogURL.path,
+                    "--asset", assetName,
+                    "--appearance", appearance.rawValue,
+                    "--output", requestedPreviewURL.path
+                ])
+                if fileManager.fileExists(atPath: requestedPreviewURL.path) {
+                    previewURLs[appearance] = requestedPreviewURL
+                }
+            } catch {
+                NSLog(
+                    "Rendering %@ CAR preview for %@ failed: %@",
+                    appearance.rawValue,
+                    assetName,
+                    error.localizedDescription
+                )
+            }
+        }
+
         return RecompositionOutput(
             assetName: assetName,
             minimumGeneration: minimumGeneration,
-            iconURL: iconURL
+            iconURL: iconURL,
+            previewURLs: previewURLs
         )
     }
 
