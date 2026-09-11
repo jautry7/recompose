@@ -322,7 +322,9 @@ int main(int argc, const char *argv[]) {
                         NSString *value = @(argv[index]);
                         if ([value isEqualToString:@"26"]) {
                             generation = RCIconGeneration26;
-                        } else if (![value isEqualToString:@"27"]) {
+                        } else if ([value isEqualToString:@"27"]) {
+                            generation = RCIconGeneration27;
+                        } else {
                             fprintf(stderr, "--generation must be 26 or 27.\n");
                             return RCUsageExit;
                         }

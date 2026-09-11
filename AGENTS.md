@@ -24,6 +24,7 @@
 - `RecomposeCLI/` owns icon-stack discovery, extraction, and `.icon` assembly in Objective-C. Preserve that responsibility boundary; do not rewrite the pipeline in Swift or substantially reorganize it without explicit approval.
 - The `Recompose CLI` Xcode target builds the `recompose` helper from source for arm64 and x86_64, and the app target embeds it. Do not reintroduce checked-in helper binaries or the removed legacy `cli/` tree.
 - The same `recompose` executable serves as the app's embedded helper and as an independently runnable Terminal tool. Keep one implementation built entirely through Xcode; do not introduce a second CLI implementation, a Makefile, or another build system.
+- The GUI accepts either a direct `.car` file or an `.app` bundle whose catalog exists at exactly `Contents/Resources/Assets.car`. Do not broaden app-bundle discovery into a recursive package search without explicit discussion. The CLI contract remains catalog-based.
 - Keep production code organized in the sibling `Recompose/` and `RecomposeCLI/` source roots. Deleted research probes remain available in Git history and should not be restored without an explicit request.
 - Do not make paid Apple signing, Developer ID distribution, or notarization a prerequisite for building the app or CLI from source. Discuss changes to signing or distribution requirements explicitly.
 
@@ -64,6 +65,7 @@
 - Preserve four outcome states: a valid catalog with no icon stack, one identified icon, multiple identified icons with an inline dropdown, and a generic processing failure. Do not treat “no icon stack” as a processing failure.
 - The multiple-icon dropdown changes which icon will be saved; it is not a separate wizard step. Prefer `AppIcon` initially when present, otherwise use the stable sorted first name, and cache successfully prepared outputs.
 - GUI saves use `<asset-name>-recomposed.icon`. Keep the medium AppKit popup size and the label-to-dropdown gap centralized in `Layout.assetLabelToDropdownSpacing` rather than duplicating the value.
+- Success previews render the original CAR's named icon stack through the private CoreUI/IconFoundation path at 256 points and scale 2 for Default, Dark, and Tinted. Keep this optional presentation path separate from reconstruction success, and do not replace it with Quick Look, Finder thumbnails, or flattened companion assets.
 - App-icon artwork and its Xcode build settings are user-owned. Do not rename, delete, replace, reinterpret, or “clean up” app-icon assets unless the user explicitly asks for that exact change.
 - The user performs visual inspection of running builds. Do not request or perform visual inspection of the app unless the user explicitly asks for it.
 

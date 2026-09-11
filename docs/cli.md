@@ -69,6 +69,8 @@ Sets the output document or extraction-directory path. Recompose will not overwr
 
 Overrides automatic minimum-version selection for reconstruction or assembly. Version 26 can be selected only when every observed capability is representable by v26. Version 27 can represent the complete currently supported material vocabulary. This option is not accepted by `extract` or `list`.
 
+Without this option, Recompose selects the earliest compatible version. Passing `--generation 27` forces v27 output even when the extracted icon could be represented by v26; passing `--generation 26` fails rather than discarding a v27-only capability.
+
 ```text
 --json
 ```
@@ -122,4 +124,10 @@ Extract and assemble in separate steps:
 ```sh
 recompose extract Assets.car --asset AppIcon --output AppIcon-extracted
 recompose assemble AppIcon-extracted --output AppIcon.icon
+```
+
+Force a v27 document from a stack whose minimum compatible version may be v26:
+
+```sh
+recompose Assets.car --generation 27 --output AppIcon-v27.icon
 ```

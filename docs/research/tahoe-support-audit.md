@@ -234,9 +234,9 @@ The tested writer design is specification-specific:
 - nonzero specular placement cannot be represented in v26 and must fail explicitly; and
 - compiler-private dead-layer and rendition-encoding choices are not reconstruction targets without evidence of a visual consequence.
 
-A working-tree implementation selects the minimum required specification automatically and retains `--generation 26|27` as an explicit override for reconstruction and assembly. The v26 branch applies the verified compatibility rules, while the v27 branch preserves the current material behavior. Classification is based on resolved capabilities rather than `AssetStorageVersion`.
+A subsequent implementation selects the minimum required specification automatically and retains `--generation 26|27` as an explicit override for reconstruction and assembly. The v26 branch applies the verified compatibility rules, while the v27 branch preserves the current material behavior. Classification is based on resolved capabilities rather than `AssetStorageVersion`.
 
-The current interface appends the selected minimum specification to displayed asset names while leaving the underlying asset name and default save filename unchanged.
+The interface reports the selected minimum specification as the document version while leaving the underlying asset name and default save filename unchanged.
 
 ## Remaining unknowns
 
@@ -245,8 +245,9 @@ The current interface appends the selected minimum specification to displayed as
 - No nonzero refractivity or inside/outside specular placement has been observed in a v26-compiled source. Their omission from v26 is established; any contrary future evidence must fail visibly rather than be discarded.
 - The exact minor Xcode 26 release that introduced Logic's dead-layer elimination and Keka's `deepmap2` encoding was not identified and is not currently considered relevant to rendering fidelity.
 - Keka establishes one stable encoding transition, not the general rules by which Xcode selects `zip`, `deepmap2`, monochrome, or other rendition forms for every raster input.
-- Recompose's private CoreUI discovery and extraction code has not been run end to end on the Tahoe computer. The Tahoe testing covered generated document acceptance, Xcode compilation, and read-back of returned CARs, not runtime API compatibility on Tahoe itself.
-- The availability of every private CoreUI class, selector, and signature used by Recompose—and the application's failure behavior when one differs—remains unverified on Tahoe.
+- Recompose's private CoreUI discovery and extraction code was not run end to end on the Tahoe computer during this audit. The Tahoe testing covered generated document acceptance, Xcode compilation, and read-back of returned CARs, not runtime API compatibility on Tahoe itself.
+- Subsequent user testing found the current application unable to complete reconstruction on Tahoe. The failing pipeline stage, exact diagnostics, and affected private CoreUI class or selector have not yet been isolated, so Tahoe runtime support remains an open product issue despite the verified v26 document writer.
+- The availability of every private CoreUI and IconFoundation class, selector, and signature used by Recompose—and the application's failure behavior when one differs—remains unverified on Tahoe.
 - Fine cross-version and system-renderer visual comparisons remain outstanding.
 
 ## Product decisions recorded by this audit

@@ -148,6 +148,22 @@ The three authored appearances resolve under the following catalog aliases:
 
 The manifest records the alias that resolved. Alias differences are not exposed as different authored appearances.
 
+## Runtime preview rendering
+
+Recompose's interface previews the original compiled icon stack rather than the reconstructed `.icon` document. On the tested macOS 27 runtime, it resolves the named stack from the source CAR and invokes IconFoundation's private stack renderer at 256 points and scale 2. The returned 512-pixel image retains transparency and is displayed at 256 points.
+
+The renderer inputs observed for the three controls are:
+
+| Interface appearance | Resolved stack representation | Renderer appearance | Renderer variant |
+|---|---|---:|---:|
+| Default | Light | `0` | `0` |
+| Dark | Dark, falling back to Light | `1` | `0` |
+| Tinted | Tintable, falling back to Light | `0` | `2` |
+
+These numeric values and the `_IF_ImageWithSize:scale:platform:appearance:appearanceVariant:tintColor:encapsulationShape:` selector are private runtime observations, not public API contracts. Preview failure does not change the reconstruction result; the interface can present the successful `.icon` without an image for an appearance that could not be rendered.
+
+This path is distinct from Quick Look, Finder thumbnails, and flattened companion renditions. Those presentation artifacts can be delayed, absent, or rendered under a different design generation, so Recompose does not use them as evidence of reconstruction fidelity.
+
 ## Extraction manifest
 
 Recompose separates CoreUI extraction from `.icon` assembly. The intermediate manifest is a project-owned JSON representation, not an Apple format. It preserves resolved CoreUI observations for the later assembly stage.
