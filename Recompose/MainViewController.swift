@@ -96,9 +96,9 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         static let previewSize: CGFloat = 256
         static let previewButtonSpacing: CGFloat = 12
         static let previewAppearanceSegmentWidth: CGFloat = 40
-        static let previewClearButtonSize: CGFloat = 40
-        static let previewClearButtonTrailingInset: CGFloat = 18
-        static let previewClearButtonTopInset: CGFloat = 18
+        static let previewClearButtonSize: CGFloat = 36
+        static let previewClearButtonTrailingInset: CGFloat = 20
+        static let previewClearButtonTopInset: CGFloat = 20
     }
 
     private enum Typography {
@@ -107,7 +107,7 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         static let dropPromptKerning: CGFloat = 0.2
         static let errorTitleLineHeight: CGFloat = 28
         static let previewAppearanceSymbolPointSize: CGFloat = 13
-        static let previewClearSymbolPointSize: CGFloat = 18
+        static let previewClearSymbolPointSize: CGFloat = 17
     }
 
     private let leftPaneView = NSView()
