@@ -18,6 +18,7 @@ struct RecompositionSession: Sendable {
     let id: UUID
     let iconNames: [String]
     let minimumGenerations: [String: Int]
+    let compilerVersion: String?
     let catalogURL: URL
     let workspaceURL: URL
     let sourceDisplayName: String
@@ -39,6 +40,7 @@ enum RecompositionEngine {
     private nonisolated struct ListResponse: Decodable {
         let formatVersion: Int
         let iconStacks: [IconStackRecord]
+        let compilerVersion: String?
     }
 
     private enum EngineError: LocalizedError {
@@ -99,6 +101,7 @@ enum RecompositionEngine {
                 id: UUID(),
                 iconNames: names,
                 minimumGenerations: minimumGenerations,
+                compilerVersion: response.compilerVersion,
                 catalogURL: stagedCatalogURL,
                 workspaceURL: workspaceURL,
                 sourceDisplayName: sourceDisplayName

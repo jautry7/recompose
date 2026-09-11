@@ -220,6 +220,59 @@ static void RCAddCandidate(NSMutableSet<NSString *> *candidates, NSString *name)
     }
 }
 
+NSString *RCDiscoverCatalogCompilerVersion(NSString *catalogPath) {
+    NSTask *task = [[NSTask alloc] init];
+    task.executableURL = [NSURL fileURLWithPath:@"/usr/bin/assetutil"];
+    task.arguments = @[ @"-I", catalogPath ];
+
+    NSPipe *standardOutput = [NSPipe pipe];
+    task.standardOutput = standardOutput;
+    task.standardError = [NSFileHandle fileHandleWithNullDevice];
+
+    NSError *launchError = nil;
+    if (![task launchAndReturnError:&launchError]) {
+        return nil;
+    }
+
+    NSData *data = [standardOutput.fileHandleForReading readDataToEndOfFile];
+    [task waitUntilExit];
+    if (task.terminationStatus != 0 || data.length == 0) {
+        return nil;
+    }
+
+    id object = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
+    if (![object isKindOfClass:[NSArray class]]) {
+        return nil;
+    }
+
+    NSString *storageVersion = nil;
+    for (id entry in (NSArray *)object) {
+        if (![entry isKindOfClass:[NSDictionary class]]) {
+            continue;
+        }
+        id value = ((NSDictionary *)entry)[@"AssetStorageVersion"];
+        if ([value isKindOfClass:[NSString class]]) {
+            storageVersion = value;
+            break;
+        }
+    }
+    if (storageVersion.length == 0) {
+        return nil;
+    }
+
+    NSRegularExpression *expression = [NSRegularExpression
+        regularExpressionWithPattern:@"^Xcode\\s+([0-9]+(?:\\.[0-9]+)*)"
+        options:0
+        error:nil];
+    NSTextCheckingResult *match = [expression firstMatchInString:storageVersion
+                                                         options:0
+                                                           range:NSMakeRange(0, storageVersion.length)];
+    if (match.numberOfRanges < 2) {
+        return nil;
+    }
+    return [storageVersion substringWithRange:[match rangeAtIndex:1]];
+}
+
 NSArray<NSDictionary *> *RCDiscoverIconStackRecords(NSString *catalogPath, NSError **error) {
     void *handle = dlopen("/System/Library/PrivateFrameworks/CoreUI.framework/CoreUI", RTLD_NOW | RTLD_LOCAL);
     if (handle == NULL) {

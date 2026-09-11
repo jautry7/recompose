@@ -634,7 +634,7 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
             details.setCustomSpacing(Layout.assetSelectionBottomSpacing, after: selectionRow)
         } else {
             details.addArrangedSubview(
-                makeDetailLabel(prefix: "Identified asset:", value: assetName)
+                makeDetailLabel(prefix: "Asset name:", value: assetName)
             )
         }
 
@@ -642,7 +642,7 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         details.addArrangedSubview(
             makeDetailLabel(
                 prefix: "Compiled with:",
-                value: generation.map { "Xcode \($0)" } ?? "—"
+                value: session?.compilerVersion.map { "Xcode \($0)" } ?? "—"
             )
         )
         details.addArrangedSubview(makeDocumentVersionRow(generation: generation))

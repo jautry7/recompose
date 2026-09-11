@@ -138,7 +138,15 @@ static int RunList(NSString *catalogPath, BOOL json) {
         return 1;
     }
     if (json) {
-        return WriteJSON(@{@"formatVersion": @1, @"iconStacks": records}) ? 0 : 1;
+        NSMutableDictionary *response = [@{
+            @"formatVersion": @1,
+            @"iconStacks": records
+        } mutableCopy];
+        NSString *compilerVersion = RCDiscoverCatalogCompilerVersion(catalogPath);
+        if (compilerVersion.length > 0) {
+            response[@"compilerVersion"] = compilerVersion;
+        }
+        return WriteJSON(response) ? 0 : 1;
     }
     if (records.count == 0) {
         printf("No icon stacks found.\n");

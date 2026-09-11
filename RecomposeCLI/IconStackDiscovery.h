@@ -4,6 +4,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 NSArray<NSString *> * _Nullable RCDiscoverIconStackNames(NSString *catalogPath, NSError **error);
 NSArray<NSDictionary *> * _Nullable RCDiscoverIconStackRecords(NSString *catalogPath, NSError **error);
+NSString * _Nullable RCDiscoverCatalogCompilerVersion(NSString *catalogPath);
 
 typedef NS_ENUM(NSInteger, RCIconPreviewAppearance) {
     RCIconPreviewAppearanceDefault,
