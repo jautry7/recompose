@@ -51,11 +51,28 @@ private final class CircularShadowView: NSView {
 }
 
 final class MainViewController: NSViewController, DropZoneViewDelegate {
+    private enum NoIconReason: Equatable {
+        case assetCatalog
+        case appMissingAssetCatalog
+        case appAssetCatalog
+
+        var message: String {
+            switch self {
+            case .assetCatalog:
+                "This asset catalog does not appear to contain an IconImageStack"
+            case .appMissingAssetCatalog:
+                "This app does not appear to contain an asset catalog"
+            case .appAssetCatalog:
+                "This app's asset catalog does not appear to contain an IconImageStack"
+            }
+        }
+    }
+
     private enum State: Equatable {
         case resting
         case hovering
         case processing
-        case noIcon
+        case noIcon(NoIconReason)
         case singleIcon(String)
         case multipleIcons([String])
         case failure
@@ -128,6 +145,8 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
     private var outputs: [String: RecompositionOutput] = [:]
     private var preparingNames: Set<String> = []
     private var animatedPreviewNames: Set<String> = []
+    private var lastAvailablePreviewAppearances: Set<IconPreviewAppearance> = []
+    private var hasAnimatedAppearanceControl = false
     private var selectedIconName: String?
     private var selectedPreviewAppearance: IconPreviewAppearance = .standard
     private var lastErrorDescription: String?
@@ -199,6 +218,7 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         clearSession()
         render(.processing)
         let didAccess = securityScopeURL.startAccessingSecurityScopedResource()
+        let sourceIsApp = securityScopeURL.pathExtension.caseInsensitiveCompare("app") == .orderedSame
 
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             var catalogIsDirectory: ObjCBool = false
@@ -223,13 +243,13 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
             DispatchQueue.main.async {
                 guard let self else { return }
                 guard let result else {
-                    self.render(.noIcon)
+                    self.render(.noIcon(sourceIsApp ? .appMissingAssetCatalog : .assetCatalog))
                     return
                 }
                 switch result {
                 case .success(let session):
                     self.session = session
-                    self.present(session)
+                    self.present(session, sourceIsApp: sourceIsApp)
                 case .failure(let error):
                     NSLog("Catalog inspection failed: %@", error.localizedDescription)
                     self.lastErrorDescription = error.localizedDescription
@@ -239,10 +259,10 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         }
     }
 
-    private func present(_ session: RecompositionSession) {
+    private func present(_ session: RecompositionSession, sourceIsApp: Bool) {
         switch session.iconNames.count {
         case 0:
-            render(.noIcon)
+            render(.noIcon(sourceIsApp ? .appAssetCatalog : .assetCatalog))
         case 1:
             let name = session.iconNames[0]
             selectedIconName = name
@@ -402,9 +422,9 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         case .multipleIcons(let names):
             let selectedName = selectedIconName ?? names[0]
             installSuccessContent(makeSuccessContent(assetName: selectedName, names: names))
-        case .noIcon:
+        case .noIcon(let reason):
             installErrorContent(
-                makeNoIconContent(),
+                makeNoIconContent(reason: reason),
                 leading: Layout.noIconLeading,
                 centerYOffset: Layout.noIconCenterYOffset
             )
@@ -457,7 +477,7 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         leftContentView = content
     }
 
-    private func makeNoIconContent() -> NSView {
+    private func makeNoIconContent(reason: NoIconReason) -> NSView {
         let symbol = makeSymbolView(
             named: "xmark.circle",
             pointSize: Layout.noIconSymbolPointSize,
@@ -478,7 +498,7 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         ])
         let header = makeErrorHeader(
             title: "No icon found",
-            message: "This asset catalog does not appear to contain an IconImageStack",
+            message: reason.message,
             width: Layout.noIconBodyWidth,
             spacing: Layout.noIconTitleSpacing,
             titleLines: 1
@@ -835,19 +855,39 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
             && selectedIconName.map { animatedPreviewNames.insert($0).inserted } == true
         let previewURL = output?.previewURLs[selectedPreviewAppearance]
             ?? output?.previewURLs[.standard]
-        let previewImage = previewURL.flatMap { NSImage(contentsOf: $0) }
-            ?? genericDocumentIcon()
-        let imageView = NSImageView(image: previewImage)
-        imageView.imageScaling = .scaleProportionallyUpOrDown
-        imageView.translatesAutoresizingMaskIntoConstraints = false
-        imageView.setAccessibilityLabel("Identified icon preview")
-        preview.addSubview(imageView)
-        NSLayoutConstraint.activate([
-            imageView.leadingAnchor.constraint(equalTo: preview.leadingAnchor),
-            imageView.trailingAnchor.constraint(equalTo: preview.trailingAnchor),
-            imageView.topAnchor.constraint(equalTo: preview.topAnchor),
-            imageView.bottomAnchor.constraint(equalTo: preview.bottomAnchor)
-        ])
+        let previewImage: NSImage? = if output == nil {
+            nil
+        } else {
+            previewURL.flatMap { NSImage(contentsOf: $0) } ?? genericDocumentIcon()
+        }
+        var imageView: NSImageView?
+        if let previewImage {
+            let loadedImageView = NSImageView(image: previewImage)
+            loadedImageView.imageScaling = .scaleProportionallyUpOrDown
+            loadedImageView.translatesAutoresizingMaskIntoConstraints = false
+            loadedImageView.setAccessibilityLabel("Identified icon preview")
+            preview.addSubview(loadedImageView)
+            NSLayoutConstraint.activate([
+                loadedImageView.leadingAnchor.constraint(equalTo: preview.leadingAnchor),
+                loadedImageView.trailingAnchor.constraint(equalTo: preview.trailingAnchor),
+                loadedImageView.topAnchor.constraint(equalTo: preview.topAnchor),
+                loadedImageView.bottomAnchor.constraint(equalTo: preview.bottomAnchor)
+            ])
+            imageView = loadedImageView
+        } else {
+            let progressIndicator = NSProgressIndicator()
+            progressIndicator.style = .spinning
+            progressIndicator.controlSize = .regular
+            progressIndicator.isIndeterminate = true
+            progressIndicator.translatesAutoresizingMaskIntoConstraints = false
+            progressIndicator.setAccessibilityLabel("Preparing icon preview")
+            progressIndicator.startAnimation(nil)
+            preview.addSubview(progressIndicator)
+            NSLayoutConstraint.activate([
+                progressIndicator.centerXAnchor.constraint(equalTo: preview.centerXAnchor),
+                progressIndicator.centerYAnchor.constraint(equalTo: preview.centerYAnchor)
+            ])
+        }
         let clearSymbolConfiguration = NSImage.SymbolConfiguration(
             pointSize: Typography.previewClearSymbolPointSize,
             weight: .semibold
@@ -900,7 +940,15 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
 
         var arrangedViews: [NSView] = [previewContainer]
         var appearanceControl: NSSegmentedControl?
-        if let output, output.previewURLs.count > 1 {
+        let availablePreviewAppearances: Set<IconPreviewAppearance>
+        if let output {
+            availablePreviewAppearances = Set(output.previewURLs.keys)
+            lastAvailablePreviewAppearances = availablePreviewAppearances
+        } else {
+            availablePreviewAppearances = lastAvailablePreviewAppearances
+        }
+        var shouldAnimateAppearanceControl = false
+        if availablePreviewAppearances.count > 1 {
             let appearances = IconPreviewAppearance.allCases
             let symbolNames = ["sun.max", "moon", "circle.righthalf.filled"]
             let symbolConfiguration = NSImage.SymbolConfiguration(
@@ -924,8 +972,10 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
             for (index, appearance) in appearances.enumerated() {
                 control.setWidth(Layout.previewAppearanceSegmentWidth, forSegment: index)
                 control.setToolTip(appearance.displayName, forSegment: index)
-                control.setEnabled(output.previewURLs[appearance] != nil, forSegment: index)
+                control.setEnabled(availablePreviewAppearances.contains(appearance), forSegment: index)
             }
+            shouldAnimateAppearanceControl = !hasAnimatedAppearanceControl
+            hasAnimatedAppearanceControl = true
             appearanceControl = control
             arrangedViews.append(control)
         }
@@ -941,8 +991,12 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
             stack.centerXAnchor.constraint(equalTo: container.centerXAnchor),
             stack.centerYAnchor.constraint(equalTo: container.centerYAnchor)
         ])
-        if shouldAnimatePreview {
-            animatePreviewEntrance(imageView, appearanceControl: appearanceControl)
+        if shouldAnimatePreview, let imageView {
+            animatePreviewEntrance(
+                imageView,
+                appearanceControl: appearanceControl,
+                animateAppearanceControl: shouldAnimateAppearanceControl
+            )
         }
         return container
     }
@@ -953,11 +1007,14 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
 
     private func animatePreviewEntrance(
         _ imageView: NSImageView,
-        appearanceControl: NSSegmentedControl?
+        appearanceControl: NSSegmentedControl?,
+        animateAppearanceControl: Bool
     ) {
         imageView.wantsLayer = true
         imageView.layer?.opacity = 0
-        appearanceControl?.alphaValue = 0
+        if animateAppearanceControl {
+            appearanceControl?.alphaValue = 0
+        }
 
         let reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
         let spring = CASpringAnimation(keyPath: "transform.scale")
@@ -990,19 +1047,21 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
             }
         }
 
-        let previewAnimationDuration = reduceMotion
-            ? Motion.previewFadeDuration
-            : spring.duration
-        let appearanceControlsDelay = Motion.previewEntranceDelay
-            + previewAnimationDuration
-            + Motion.appearanceControlsDelayAfterSpring
-        DispatchQueue.main.asyncAfter(
-            deadline: .now() + appearanceControlsDelay
-        ) { [weak appearanceControl] in
-            guard let appearanceControl, appearanceControl.window != nil else { return }
-            NSAnimationContext.runAnimationGroup { context in
-                context.duration = Motion.appearanceControlsFadeDuration
-                appearanceControl.animator().alphaValue = 1
+        if animateAppearanceControl {
+            let previewAnimationDuration = reduceMotion
+                ? Motion.previewFadeDuration
+                : spring.duration
+            let appearanceControlsDelay = Motion.previewEntranceDelay
+                + previewAnimationDuration
+                + Motion.appearanceControlsDelayAfterSpring
+            DispatchQueue.main.asyncAfter(
+                deadline: .now() + appearanceControlsDelay
+            ) { [weak appearanceControl] in
+                guard let appearanceControl, appearanceControl.window != nil else { return }
+                NSAnimationContext.runAnimationGroup { context in
+                    context.duration = Motion.appearanceControlsFadeDuration
+                    appearanceControl.animator().alphaValue = 1
+                }
             }
         }
     }
@@ -1158,6 +1217,8 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         outputs.removeAll()
         preparingNames.removeAll()
         animatedPreviewNames.removeAll()
+        lastAvailablePreviewAppearances.removeAll()
+        hasAnimatedAppearanceControl = false
         selectedIconName = nil
         selectedPreviewAppearance = .standard
         lastErrorDescription = nil
