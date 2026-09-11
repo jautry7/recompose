@@ -64,7 +64,8 @@ enum RecompositionEngine {
 
     nonisolated static func inspect(
         catalogURL: URL,
-        sourceDisplayName: String
+        sourceDisplayName: String,
+        preferredIconName: String?
     ) throws -> RecompositionSession {
         let fileManager = FileManager.default
         let workspaceURL = fileManager.temporaryDirectory
@@ -80,7 +81,10 @@ enum RecompositionEngine {
 
             let data = try runCLI(arguments: ["list", stagedCatalogURL.path, "--json"])
             let response = try JSONDecoder().decode(ListResponse.self, from: data)
-            let names = response.iconStacks.map(\.name)
+            let names = orderedIconNames(
+                response.iconStacks.map(\.name),
+                preferredIconName: preferredIconName
+            )
             let minimumGenerations = Dictionary(
                 uniqueKeysWithValues: response.iconStacks.map { ($0.name, $0.minimumGeneration) }
             )
@@ -170,6 +174,24 @@ enum RecompositionEngine {
 
     nonisolated static func remove(_ session: RecompositionSession) {
         try? FileManager.default.removeItem(at: session.workspaceURL)
+    }
+
+    private nonisolated static func orderedIconNames(
+        _ names: [String],
+        preferredIconName: String?
+    ) -> [String] {
+        var orderedNames = names.sorted { left, right in
+            let insensitive = left.caseInsensitiveCompare(right)
+            return insensitive == .orderedSame
+                ? left.compare(right) == .orderedAscending
+                : insensitive == .orderedAscending
+        }
+        guard let preferredIconName,
+              let preferredIndex = orderedNames.firstIndex(of: preferredIconName) else {
+            return orderedNames
+        }
+        orderedNames.insert(orderedNames.remove(at: preferredIndex), at: 0)
+        return orderedNames
     }
 
     private nonisolated static func runCLI(arguments: [String]) throws -> Data {

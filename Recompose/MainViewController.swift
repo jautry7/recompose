@@ -228,9 +228,13 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
             ) && !catalogIsDirectory.boolValue
             let result: Result<RecompositionSession, Error>? = if catalogExists {
                 Result {
-                    try RecompositionEngine.inspect(
+                    let preferredIconName = sourceIsApp
+                        ? Self.primaryIconName(inAppAt: securityScopeURL)
+                        : nil
+                    return try RecompositionEngine.inspect(
                         catalogURL: catalogURL,
-                        sourceDisplayName: displayName
+                        sourceDisplayName: displayName,
+                        preferredIconName: preferredIconName
                     )
                 }
             } else {
@@ -268,9 +272,7 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
             selectedIconName = name
             prepareIcon(named: name, in: session)
         default:
-            let name = session.iconNames.contains("AppIcon")
-                ? "AppIcon"
-                : session.iconNames[0]
+            let name = session.iconNames[0]
             selectedIconName = name
             render(.multipleIcons(session.iconNames))
             prepareIcon(named: name, in: session)
@@ -558,6 +560,20 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         content.alignment = .leading
         content.spacing = Layout.errorButtonSpacing
         return content
+    }
+
+    private nonisolated static func primaryIconName(inAppAt appURL: URL) -> String? {
+        guard let info = Bundle(url: appURL)?.infoDictionary else { return nil }
+        if let name = info["CFBundleIconName"] as? String, !name.isEmpty {
+            return name
+        }
+        guard let icons = info["CFBundleIcons"] as? [String: Any],
+              let primaryIcon = icons["CFBundlePrimaryIcon"] as? [String: Any],
+              let name = primaryIcon["CFBundleIconName"] as? String,
+              !name.isEmpty else {
+            return nil
+        }
+        return name
     }
 
     private func makeErrorHeader(
