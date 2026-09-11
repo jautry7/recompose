@@ -20,6 +20,7 @@ struct RecompositionSession: Sendable {
     let minimumGenerations: [String: Int]
     let catalogURL: URL
     let workspaceURL: URL
+    let sourceDisplayName: String
 }
 
 struct RecompositionOutput: Sendable {
@@ -61,7 +62,10 @@ enum RecompositionEngine {
         }
     }
 
-    nonisolated static func inspect(catalogURL: URL) throws -> RecompositionSession {
+    nonisolated static func inspect(
+        catalogURL: URL,
+        sourceDisplayName: String
+    ) throws -> RecompositionSession {
         let fileManager = FileManager.default
         let workspaceURL = fileManager.temporaryDirectory
             .appendingPathComponent("recompose-\(UUID().uuidString)", isDirectory: true)
@@ -92,7 +96,8 @@ enum RecompositionEngine {
                 iconNames: names,
                 minimumGenerations: minimumGenerations,
                 catalogURL: stagedCatalogURL,
-                workspaceURL: workspaceURL
+                workspaceURL: workspaceURL,
+                sourceDisplayName: sourceDisplayName
             )
         } catch {
             try? fileManager.removeItem(at: workspaceURL)

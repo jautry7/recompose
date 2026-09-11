@@ -3,7 +3,12 @@ import Symbols
 
 protocol DropZoneViewDelegate: AnyObject {
     func dropZone(_ dropZone: DropZoneView, hoveringOverValidFile isHovering: Bool)
-    func dropZone(_ dropZone: DropZoneView, didReceiveCatalogAt url: URL)
+    func dropZone(
+        _ dropZone: DropZoneView,
+        didReceiveCatalogAt catalogURL: URL,
+        securityScopeURL: URL,
+        displayName: String
+    )
     func dropZoneDidRejectFile(_ dropZone: DropZoneView)
 }
 
@@ -121,19 +126,24 @@ final class DropZoneView: NSView {
             delegate?.dropZone(self, hoveringOverValidFile: false)
         }
 
-        guard acceptsDrops, let url = validCatalogURL(from: sender.draggingPasteboard) else {
+        guard acceptsDrops, let input = validCatalogInput(from: sender.draggingPasteboard) else {
             delegate?.dropZoneDidRejectFile(self)
             return false
         }
 
-        delegate?.dropZone(self, didReceiveCatalogAt: url)
+        delegate?.dropZone(
+            self,
+            didReceiveCatalogAt: input.catalogURL,
+            securityScopeURL: input.securityScopeURL,
+            displayName: input.displayName
+        )
         return true
     }
 
     private func updateDragState(_ sender: any NSDraggingInfo) -> NSDragOperation {
         guard acceptsDrops else { return [] }
 
-        if validCatalogURL(from: sender.draggingPasteboard) != nil {
+        if validCatalogInput(from: sender.draggingPasteboard) != nil {
             hasSignaledInvalidDrag = false
             delegate?.dropZone(self, hoveringOverValidFile: true)
             return .copy
@@ -147,7 +157,9 @@ final class DropZoneView: NSView {
         return []
     }
 
-    private func validCatalogURL(from pasteboard: NSPasteboard) -> URL? {
+    private func validCatalogInput(
+        from pasteboard: NSPasteboard
+    ) -> (catalogURL: URL, securityScopeURL: URL, displayName: String)? {
         let options: [NSPasteboard.ReadingOptionKey: Any] = [
             .urlReadingFileURLsOnly: true
         ]
@@ -159,15 +171,31 @@ final class DropZoneView: NSView {
         }
 
         let url = objects[0] as URL
-        guard url.pathExtension.caseInsensitiveCompare("car") == .orderedSame else {
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory) else {
             return nil
         }
 
-        var isDirectory: ObjCBool = false
-        guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory),
-              !isDirectory.boolValue else {
+        if url.pathExtension.caseInsensitiveCompare("car") == .orderedSame,
+           !isDirectory.boolValue {
+            return (url, url, url.lastPathComponent)
+        }
+
+        guard url.pathExtension.caseInsensitiveCompare("app") == .orderedSame,
+              isDirectory.boolValue else {
             return nil
         }
-        return url
+        let catalogURL = url
+            .appendingPathComponent("Contents", isDirectory: true)
+            .appendingPathComponent("Resources", isDirectory: true)
+            .appendingPathComponent("Assets.car", isDirectory: false)
+        var catalogIsDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(
+            atPath: catalogURL.path,
+            isDirectory: &catalogIsDirectory
+        ), !catalogIsDirectory.boolValue else {
+            return nil
+        }
+        return (catalogURL, url, url.deletingPathExtension().lastPathComponent)
     }
 }

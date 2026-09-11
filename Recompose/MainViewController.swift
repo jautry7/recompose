@@ -69,6 +69,7 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         static let introSpacing: CGFloat = 4
         static let introCenterYOffset: CGFloat = -4
         static let successLeading: CGFloat = 48
+        static let successTrailing: CGFloat = 64
         static let successCenterYOffset: CGFloat = 8
         static let successEyebrowSpacing: CGFloat = 14
         static let successTitleSpacing: CGFloat = 8
@@ -94,7 +95,7 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         static let noIconBodyWidth: CGFloat = 222
         static let eyebrowIconSpacing: CGFloat = 3
         static let previewSize: CGFloat = 256
-        static let previewButtonSpacing: CGFloat = 12
+        static let previewButtonSpacing: CGFloat = 16
         static let previewAppearanceSegmentWidth: CGFloat = 40
         static let previewClearButtonSize: CGFloat = 36
         static let previewClearButtonTrailingInset: CGFloat = 20
@@ -110,6 +111,14 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         static let previewClearSymbolPointSize: CGFloat = 17
     }
 
+    private enum Motion {
+        static let previewEntranceDelay: TimeInterval = 0.2
+        static let previewFadeDuration: TimeInterval = 0.18
+        static let previewSpringDurationMultiplier: TimeInterval = 0.5
+        static let appearanceControlsDelayAfterSpring: TimeInterval = 0.0
+        static let appearanceControlsFadeDuration: TimeInterval = 0.2
+    }
+
     private let leftPaneView = NSView()
     private let dropZoneView = DropZoneView()
     private var leftContentView: NSView?
@@ -118,6 +127,7 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
     private var session: RecompositionSession?
     private var outputs: [String: RecompositionOutput] = [:]
     private var preparingNames: Set<String> = []
+    private var animatedPreviewNames: Set<String> = []
     private var selectedIconName: String?
     private var selectedPreviewAppearance: IconPreviewAppearance = .standard
     private var lastErrorDescription: String?
@@ -162,9 +172,18 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         render(nextState)
     }
 
-    func dropZone(_ dropZone: DropZoneView, didReceiveCatalogAt url: URL) {
+    func dropZone(
+        _ dropZone: DropZoneView,
+        didReceiveCatalogAt catalogURL: URL,
+        securityScopeURL: URL,
+        displayName: String
+    ) {
         guard state == .resting || state == .hovering else { return }
-        beginProcessing(url)
+        beginProcessing(
+            catalogURL,
+            securityScopeURL: securityScopeURL,
+            displayName: displayName
+        )
     }
 
     func dropZoneDidRejectFile(_ dropZone: DropZoneView) {
@@ -172,15 +191,24 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         restingSymbolView?.addSymbolEffect(.wiggle, options: .speed(2.0))
     }
 
-    private func beginProcessing(_ catalogURL: URL) {
+    private func beginProcessing(
+        _ catalogURL: URL,
+        securityScopeURL: URL,
+        displayName: String
+    ) {
         clearSession()
         render(.processing)
-        let didAccess = catalogURL.startAccessingSecurityScopedResource()
+        let didAccess = securityScopeURL.startAccessingSecurityScopedResource()
 
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            let result = Result { try RecompositionEngine.inspect(catalogURL: catalogURL) }
+            let result = Result {
+                try RecompositionEngine.inspect(
+                    catalogURL: catalogURL,
+                    sourceDisplayName: displayName
+                )
+            }
             if didAccess {
-                catalogURL.stopAccessingSecurityScopedResource()
+                securityScopeURL.stopAccessingSecurityScopedResource()
             }
 
             DispatchQueue.main.async {
@@ -384,6 +412,10 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
                 equalTo: leftPaneView.leadingAnchor,
                 constant: Layout.successLeading
             ),
+            content.trailingAnchor.constraint(
+                equalTo: leftPaneView.trailingAnchor,
+                constant: -Layout.successTrailing
+            ),
             content.centerYAnchor.constraint(
                 equalTo: leftPaneView.centerYAnchor,
                 constant: Layout.successCenterYOffset
@@ -565,12 +597,14 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         )
 
         let title = makePreferredLabel(
-            "Assets.car",
+            session?.sourceDisplayName ?? "Assets.car",
             textStyle: .largeTitle,
             emphasized: true,
             color: .labelColor
         )
         title.alignment = .left
+        title.maximumNumberOfLines = 0
+        title.lineBreakMode = .byWordWrapping
         let textT = NSMutableAttributedString(attributedString: title.attributedStringValue)
         textT.addAttribute(
             .kern,
@@ -622,6 +656,7 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         content.orientation = .vertical
         content.alignment = .leading
         content.spacing = Layout.successButtonSpacing
+        title.widthAnchor.constraint(equalTo: content.widthAnchor).isActive = true
         return content
     }
 
@@ -783,6 +818,8 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         ])
 
         let output = selectedIconName.flatMap { outputs[$0] }
+        let shouldAnimatePreview = output != nil
+            && selectedIconName.map { animatedPreviewNames.insert($0).inserted } == true
         let previewURL = output?.previewURLs[selectedPreviewAppearance]
             ?? output?.previewURLs[.standard]
         let previewImage = previewURL.flatMap { NSImage(contentsOf: $0) }
@@ -798,7 +835,6 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
             imageView.topAnchor.constraint(equalTo: preview.topAnchor),
             imageView.bottomAnchor.constraint(equalTo: preview.bottomAnchor)
         ])
-
         let clearSymbolConfiguration = NSImage.SymbolConfiguration(
             pointSize: Typography.previewClearSymbolPointSize,
             weight: .semibold
@@ -850,6 +886,7 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         ])
 
         var arrangedViews: [NSView] = [previewContainer]
+        var appearanceControl: NSSegmentedControl?
         if let output, output.previewURLs.count > 1 {
             let appearances = IconPreviewAppearance.allCases
             let symbolNames = ["sun.max", "moon", "circle.righthalf.filled"]
@@ -876,6 +913,7 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
                 control.setToolTip(appearance.displayName, forSegment: index)
                 control.setEnabled(output.previewURLs[appearance] != nil, forSegment: index)
             }
+            appearanceControl = control
             arrangedViews.append(control)
         }
         let stack = NSStackView(views: arrangedViews)
@@ -890,11 +928,70 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
             stack.centerXAnchor.constraint(equalTo: container.centerXAnchor),
             stack.centerYAnchor.constraint(equalTo: container.centerYAnchor)
         ])
+        if shouldAnimatePreview {
+            animatePreviewEntrance(imageView, appearanceControl: appearanceControl)
+        }
         return container
     }
 
     private func genericDocumentIcon() -> NSImage {
         NSWorkspace.shared.icon(for: .data)
+    }
+
+    private func animatePreviewEntrance(
+        _ imageView: NSImageView,
+        appearanceControl: NSSegmentedControl?
+    ) {
+        imageView.wantsLayer = true
+        imageView.layer?.opacity = 0
+        appearanceControl?.alphaValue = 0
+
+        let reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        let spring = CASpringAnimation(keyPath: "transform.scale")
+        spring.fromValue = 0.82
+        spring.toValue = 1
+        spring.mass = 1
+        spring.stiffness = 240
+        spring.damping = 15
+        spring.initialVelocity = 0
+        spring.duration = spring.settlingDuration * Motion.previewSpringDurationMultiplier
+
+        DispatchQueue.main.asyncAfter(
+            deadline: .now() + Motion.previewEntranceDelay
+        ) { [weak imageView] in
+            guard let imageView, imageView.window != nil, let layer = imageView.layer else { return }
+
+            let frame = layer.frame
+            layer.anchorPoint = CGPoint(x: 0.5, y: 0.5)
+            layer.frame = frame
+            layer.opacity = 1
+
+            let fade = CABasicAnimation(keyPath: "opacity")
+            fade.fromValue = 0
+            fade.toValue = 1
+            fade.duration = Motion.previewFadeDuration
+            layer.add(fade, forKey: "previewFadeIn")
+
+            if !reduceMotion {
+                layer.add(spring, forKey: "previewBounceIn")
+            }
+        }
+
+        let previewAnimationDuration = reduceMotion
+            ? Motion.previewFadeDuration
+            : spring.duration
+        let appearanceControlsDelay = Motion.previewEntranceDelay
+            + previewAnimationDuration
+            + Motion.appearanceControlsDelayAfterSpring
+        DispatchQueue.main.asyncAfter(
+            deadline: .now() + appearanceControlsDelay
+        ) { [weak appearanceControl] in
+            guard let appearanceControl, appearanceControl.window != nil else { return }
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = Motion.appearanceControlsFadeDuration
+                appearanceControl.animator().alphaValue = 1
+            }
+        }
     }
 
     private func makePreferredLabel(
@@ -1047,6 +1144,7 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         session = nil
         outputs.removeAll()
         preparingNames.removeAll()
+        animatedPreviewNames.removeAll()
         selectedIconName = nil
         selectedPreviewAppearance = .standard
         lastErrorDescription = nil
