@@ -81,12 +81,10 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
     private enum Layout {
         static let assetLabelToDropdownSpacing: CGFloat = 6
         static let paneWidth: CGFloat = 350
-        static let introLeading: CGFloat = 48
-        static let introBodyWidth: CGFloat = 222
+        static let leftContentLeadingPadding: CGFloat = 48
+        static let leftContentTrailingPadding: CGFloat = 64
         static let introSpacing: CGFloat = 4
         static let introCenterYOffset: CGFloat = -4
-        static let successLeading: CGFloat = 48
-        static let successTrailing: CGFloat = 64
         static let successCenterYOffset: CGFloat = 8
         static let successEyebrowSpacing: CGFloat = 14
         static let successTitleSpacing: CGFloat = 8
@@ -95,21 +93,17 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         static let successButtonSpacing: CGFloat = 32
         static let documentHelpSize: CGFloat = 16
         static let documentHelpYOffset: CGFloat = 0.5
-        static let errorLeading: CGFloat = 48
         static let errorCenterYOffset: CGFloat = 12
         static let errorButtonSpacing: CGFloat = 32
-        static let errorButtonHorizontalSpacing: CGFloat = 12
+        static let errorButtonHorizontalSpacing: CGFloat = 10
         static let errorEyebrowSpacing: CGFloat = 12
         static let errorTitleSpacing: CGFloat = 8
-        static let errorBodyWidth: CGFloat = 246
-        static let noIconLeading: CGFloat = 48
         static let noIconCenterYOffset: CGFloat = 16
         static let noIconButtonSpacing: CGFloat = 32
         static let noIconSymbolPointSize: CGFloat = 32
         static let noIconSymbolLayoutWidth: CGFloat = 30
         static let noIconSymbolSpacing: CGFloat = 16
         static let noIconTitleSpacing: CGFloat = 4
-        static let noIconBodyWidth: CGFloat = 222
         static let eyebrowIconSpacing: CGFloat = 3
         static let previewSize: CGFloat = 256
         static let previewButtonSpacing: CGFloat = 16
@@ -392,7 +386,6 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
             description.alignment = .left
             description.maximumNumberOfLines = 2
             description.lineBreakMode = .byWordWrapping
-            description.preferredMaxLayoutWidth = Layout.introBodyWidth
             let textD = NSMutableAttributedString(attributedString: description.attributedStringValue)
             textD.addAttribute(
                 .kern,
@@ -405,71 +398,43 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
             stack.orientation = .vertical
             stack.alignment = .leading
             stack.spacing = Layout.introSpacing
-            stack.translatesAutoresizingMaskIntoConstraints = false
-            leftPaneView.addSubview(stack)
-            NSLayoutConstraint.activate([
-                stack.leadingAnchor.constraint(
-                    equalTo: leftPaneView.leadingAnchor,
-                    constant: Layout.introLeading
-                ),
-                stack.centerYAnchor.constraint(
-                    equalTo: leftPaneView.centerYAnchor,
-                    constant: Layout.introCenterYOffset
-                ),
-                description.widthAnchor.constraint(equalToConstant: Layout.introBodyWidth)
-            ])
-            leftContentView = stack
+            description.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
+            installLeftContent(stack, centerYOffset: Layout.introCenterYOffset)
         case .singleIcon(let name):
-            installSuccessContent(makeSuccessContent(assetName: name, names: nil))
+            installLeftContent(
+                makeSuccessContent(assetName: name, names: nil),
+                centerYOffset: Layout.successCenterYOffset
+            )
         case .multipleIcons(let names):
             let selectedName = selectedIconName ?? names[0]
-            installSuccessContent(makeSuccessContent(assetName: selectedName, names: names))
+            installLeftContent(
+                makeSuccessContent(assetName: selectedName, names: names),
+                centerYOffset: Layout.successCenterYOffset
+            )
         case .noIcon(let reason):
-            installErrorContent(
+            installLeftContent(
                 makeNoIconContent(reason: reason),
-                leading: Layout.noIconLeading,
                 centerYOffset: Layout.noIconCenterYOffset
             )
         case .failure:
-            installErrorContent(
+            installLeftContent(
                 makeGenericErrorContent(),
-                leading: Layout.errorLeading,
                 centerYOffset: Layout.errorCenterYOffset
             )
         }
     }
 
-    private func installSuccessContent(_ content: NSView) {
+    private func installLeftContent(_ content: NSView, centerYOffset: CGFloat) {
         content.translatesAutoresizingMaskIntoConstraints = false
         leftPaneView.addSubview(content)
         NSLayoutConstraint.activate([
             content.leadingAnchor.constraint(
                 equalTo: leftPaneView.leadingAnchor,
-                constant: Layout.successLeading
+                constant: Layout.leftContentLeadingPadding
             ),
             content.trailingAnchor.constraint(
                 equalTo: leftPaneView.trailingAnchor,
-                constant: -Layout.successTrailing
-            ),
-            content.centerYAnchor.constraint(
-                equalTo: leftPaneView.centerYAnchor,
-                constant: Layout.successCenterYOffset
-            )
-        ])
-        leftContentView = content
-    }
-
-    private func installErrorContent(
-        _ content: NSView,
-        leading: CGFloat,
-        centerYOffset: CGFloat
-    ) {
-        content.translatesAutoresizingMaskIntoConstraints = false
-        leftPaneView.addSubview(content)
-        NSLayoutConstraint.activate([
-            content.leadingAnchor.constraint(
-                equalTo: leftPaneView.leadingAnchor,
-                constant: leading
+                constant: -Layout.leftContentTrailingPadding
             ),
             content.centerYAnchor.constraint(
                 equalTo: leftPaneView.centerYAnchor,
@@ -501,7 +466,6 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         let header = makeErrorHeader(
             title: "No icon found",
             message: reason.message,
-            width: Layout.noIconBodyWidth,
             spacing: Layout.noIconTitleSpacing,
             titleLines: 1
         )
@@ -518,6 +482,8 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         content.orientation = .vertical
         content.alignment = .leading
         content.spacing = Layout.noIconButtonSpacing
+        information.widthAnchor.constraint(equalTo: content.widthAnchor).isActive = true
+        header.widthAnchor.constraint(equalTo: information.widthAnchor).isActive = true
         return content
     }
 
@@ -530,7 +496,6 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         let header = makeErrorHeader(
             title: "Could not process asset catalog",
             message: "An unknown error occurred and the CAR file could not be processed.",
-            width: Layout.errorBodyWidth,
             spacing: Layout.errorTitleSpacing,
             titleLines: 2,
             titleLineHeight: Typography.errorTitleLineHeight
@@ -548,7 +513,6 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         copyButton.isBordered = false
         copyButton.controlSize = .extraLarge
         copyButton.font = .systemFont(ofSize: 13)
-        copyButton.contentTintColor = .controlAccentColor
 
         let actions = NSStackView(views: [okayButton, copyButton])
         actions.orientation = .horizontal
@@ -559,6 +523,8 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         content.orientation = .vertical
         content.alignment = .leading
         content.spacing = Layout.errorButtonSpacing
+        information.widthAnchor.constraint(equalTo: content.widthAnchor).isActive = true
+        header.widthAnchor.constraint(equalTo: information.widthAnchor).isActive = true
         return content
     }
 
@@ -579,7 +545,6 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
     private func makeErrorHeader(
         title: String,
         message: String,
-        width: CGFloat,
         spacing: CGFloat,
         titleLines: Int,
         titleLineHeight: CGFloat? = nil
@@ -593,7 +558,6 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         titleLabel.alignment = .left
         titleLabel.maximumNumberOfLines = titleLines
         titleLabel.lineBreakMode = .byWordWrapping
-        titleLabel.preferredMaxLayoutWidth = width
         let titleText = NSMutableAttributedString(attributedString: titleLabel.attributedStringValue)
         titleText.addAttribute(
             .kern,
@@ -620,7 +584,6 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         messageLabel.alignment = .left
         messageLabel.maximumNumberOfLines = 2
         messageLabel.lineBreakMode = .byWordWrapping
-        messageLabel.preferredMaxLayoutWidth = width
         let messageText = NSMutableAttributedString(attributedString: messageLabel.attributedStringValue)
         messageText.addAttribute(
             .kern,
@@ -633,10 +596,8 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         header.orientation = .vertical
         header.alignment = .leading
         header.spacing = spacing
-        NSLayoutConstraint.activate([
-            titleLabel.widthAnchor.constraint(equalToConstant: width),
-            messageLabel.widthAnchor.constraint(equalToConstant: width)
-        ])
+        titleLabel.widthAnchor.constraint(equalTo: header.widthAnchor).isActive = true
+        messageLabel.widthAnchor.constraint(equalTo: header.widthAnchor).isActive = true
         return header
     }
 
