@@ -46,10 +46,14 @@ final class DropZoneView: NSView {
     }
 
     private let dragCaptureView = DragCaptureView()
+    private let leadingSeparatorLayer = CALayer()
     private var hasSignaledInvalidDrag = false
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
+        wantsLayer = true
+        leadingSeparatorLayer.zPosition = 1
+        layer?.addSublayer(leadingSeparatorLayer)
         registerForDraggedTypes([.fileURL])
 
         dragCaptureView.dropZone = self
@@ -67,12 +71,26 @@ final class DropZoneView: NSView {
         fatalError("init(coder:) has not been implemented")
     }
 
-    override func draw(_ dirtyRect: NSRect) {
-        let color = isHighlighted
+    override var wantsUpdateLayer: Bool {
+        true
+    }
+
+    override func updateLayer() {
+        let backgroundColor = isHighlighted
             ? NSColor.controlAccentColor.withAlphaComponent(0.08)
             : NSColor.quaternarySystemFill
-        color.setFill()
-        dirtyRect.fill()
+        let separatorColor = isHighlighted
+            ? NSColor.controlAccentColor.withAlphaComponent(0.25)
+            : NSColor.separatorColor
+        effectiveAppearance.performAsCurrentDrawingAppearance {
+            self.layer?.backgroundColor = backgroundColor.cgColor
+            self.leadingSeparatorLayer.backgroundColor = separatorColor.cgColor
+        }
+    }
+
+    override func layout() {
+        super.layout()
+        leadingSeparatorLayer.frame = NSRect(x: -1, y: 0, width: 1, height: bounds.height)
     }
 
     override func viewDidChangeEffectiveAppearance() {

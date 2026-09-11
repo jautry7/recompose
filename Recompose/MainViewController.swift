@@ -14,9 +14,15 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
 
     private enum Layout {
         static let assetLabelToDropdownSpacing: CGFloat = 6
+        static let paneWidth: CGFloat = 350
+        static let introLeading: CGFloat = 48
+        static let introBodyWidth: CGFloat = 222
+        static let introSpacing: CGFloat = 4
     }
 
+    private let leftPaneView = NSView()
     private let dropZoneView = DropZoneView()
+    private var leftContentView: NSView?
     private var contentView: NSView?
     private var restingSymbolView: NSImageView?
     private var session: RecompositionSession?
@@ -26,9 +32,23 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
     private var state: State = .resting
 
     override func loadView() {
+        let rootView = NSView()
+        leftPaneView.translatesAutoresizingMaskIntoConstraints = false
         dropZoneView.delegate = self
         dropZoneView.translatesAutoresizingMaskIntoConstraints = false
-        view = dropZoneView
+        rootView.addSubview(leftPaneView)
+        rootView.addSubview(dropZoneView)
+        NSLayoutConstraint.activate([
+            leftPaneView.widthAnchor.constraint(equalToConstant: Layout.paneWidth),
+            leftPaneView.leadingAnchor.constraint(equalTo: rootView.leadingAnchor),
+            leftPaneView.topAnchor.constraint(equalTo: rootView.topAnchor),
+            leftPaneView.bottomAnchor.constraint(equalTo: rootView.bottomAnchor),
+            dropZoneView.widthAnchor.constraint(equalToConstant: Layout.paneWidth),
+            dropZoneView.trailingAnchor.constraint(equalTo: rootView.trailingAnchor),
+            dropZoneView.topAnchor.constraint(equalTo: rootView.topAnchor),
+            dropZoneView.bottomAnchor.constraint(equalTo: rootView.bottomAnchor)
+        ])
+        view = rootView
     }
 
     override func viewDidLoad() {
@@ -154,6 +174,7 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         dropZoneView.acceptsDrops = newState == .resting || newState == .hovering
         dropZoneView.isHighlighted = newState == .hovering
         restingSymbolView = nil
+        updateLeftPane(for: newState)
 
         contentView?.removeFromSuperview()
         let replacement: NSView
@@ -203,6 +224,75 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         contentView = replacement
     }
 
+    private func updateLeftPane(for state: State) {
+        leftContentView?.removeFromSuperview()
+
+        switch state {
+        case .resting, .hovering, .processing:
+            let title = makePreferredLabel(
+                "Recompose",
+                textStyle: .largeTitle,
+                emphasized: true,
+                color: .labelColor
+            )
+            title.alignment = .left
+            let text = NSMutableAttributedString(attributedString: title.attributedStringValue)
+            text.addAttribute(.kern, value: 0.2, range: NSRange(location: 0, length: text.length))
+            title.attributedStringValue = text
+
+            let description = makePreferredLabel(
+                "Reconstruct an Icon Composer document for any app icon.",
+                textStyle: .body,
+                color: .secondaryLabelColor
+            )
+            description.alignment = .left
+            description.maximumNumberOfLines = 2
+            description.lineBreakMode = .byWordWrapping
+            description.preferredMaxLayoutWidth = Layout.introBodyWidth
+            let textD = NSMutableAttributedString(attributedString: description.attributedStringValue)
+            textD.addAttribute(.kern, value: 0.1, range: NSRange(location: 0, length: textD.length))
+            description.attributedStringValue = textD
+
+            let stack = NSStackView(views: [title, description])
+            stack.orientation = .vertical
+            stack.alignment = .leading
+            stack.spacing = Layout.introSpacing
+            stack.translatesAutoresizingMaskIntoConstraints = false
+            leftPaneView.addSubview(stack)
+            NSLayoutConstraint.activate([
+                stack.leadingAnchor.constraint(
+                    equalTo: leftPaneView.leadingAnchor,
+                    constant: Layout.introLeading
+                ),
+                stack.centerYAnchor.constraint(
+                    equalTo: leftPaneView.centerYAnchor,
+                    constant: -4
+                ),
+                description.widthAnchor.constraint(equalToConstant: Layout.introBodyWidth)
+            ])
+            leftContentView = stack
+        default:
+            leftContentView = nil
+        }
+    }
+
+    private func makePreferredLabel(
+        _ string: String,
+        textStyle: NSFont.TextStyle,
+        emphasized: Bool = false,
+        color: NSColor
+    ) -> NSTextField {
+        let label = NSTextField(labelWithString: string)
+        let preferredFont = NSFont.preferredFont(forTextStyle: textStyle)
+        label.font = emphasized
+            ? NSFontManager.shared.convert(preferredFont, toHaveTrait: .boldFontMask)
+            : preferredFont
+        label.textColor = color
+        label.alignment = .center
+        label.maximumNumberOfLines = 1
+        return label
+    }
+
     private func makeDropPrompt(isHovering: Bool) -> NSView {
         let container = NSView()
         let symbolName: String
@@ -215,17 +305,21 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         }
         let symbol = makeSymbolView(
             named: symbolName,
-            pointSize: 120,
+            pointSize: 112,
             weight: .ultraLight,
             color: isHovering ? .controlAccentColor : .tertiaryLabelColor,
             accessibilityDescription: isHovering ? "Ready to drop" : "Drop zone"
         )
-        let label = makeLabel(
-            "Drop your Assets.car file here",
-            size: 17,
-            weight: .regular,
+        let label = makePreferredLabel(
+            "Drop an app or\nAssets.car file here",
+            textStyle: .title2,
             color: isHovering ? .controlAccentColor : .secondaryLabelColor
         )
+        label.maximumNumberOfLines = 2
+        let text = NSMutableAttributedString(attributedString: label.attributedStringValue)
+        text.addAttribute(.kern, value: 0.2, range: NSRange(location: 0, length: text.length))
+        label.attributedStringValue = text
+        label.alphaValue = isHovering ? 1.0 : 0.7
 
         let stack = NSStackView(views: [symbol, label])
         stack.orientation = .vertical
@@ -238,7 +332,7 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
             symbol.widthAnchor.constraint(equalToConstant: 144),
             symbol.heightAnchor.constraint(equalToConstant: 144),
             stack.centerXAnchor.constraint(equalTo: container.centerXAnchor),
-            stack.centerYAnchor.constraint(equalTo: container.centerYAnchor, constant: -22)
+            stack.centerYAnchor.constraint(equalTo: container.centerYAnchor, constant: -12)
         ])
 
         if !isHovering {
