@@ -46,4 +46,4 @@ See the [complete command-line reference](docs/cli.md) for details.
 ## Notes
 
 - Recompose is not affiliated with or endorsed by Apple; it began as an experiment when I discovered that the flattened renditions of an app's icon stored in `Assets.car` were still being rendered in the Tahoe-era Liquid Glass style, even on macOS Golden Gate 27. This meant the platform offered no static asset of an app's icon in the new Golden Gate-era rendering style. For my own curiosity, I wanted to look into how I could inspect these gorgeous new icons in high resolution... la di da di da, a few Figma explorations and a few million Codex tokens later, and now here we are.
-- Recompose is a hobbyist project made by someone who loves iconography on the Mac, intended for design lovers to inspect and admire the nuanced design details of modern Mac icons. Please do not use Recompose to plagiarize another developer's icon.
+- Recompose is a hobbyist project made by someone who loves iconography on the Mac, intended for design lovers to inspect and admire the nuanced design details of modern Mac icons. **Please do not use Recompose to plagiarize another developer's icon.**
