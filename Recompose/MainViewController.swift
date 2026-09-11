@@ -20,7 +20,7 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         static let introSpacing: CGFloat = 4
         static let introCenterYOffset: CGFloat = -4
         static let successLeading: CGFloat = 48
-        static let successCenterYOffset: CGFloat = 12
+        static let successCenterYOffset: CGFloat = 8
         static let successEyebrowSpacing: CGFloat = 14
         static let successTitleSpacing: CGFloat = 8
         static let successDetailSpacing: CGFloat = 5
@@ -918,7 +918,7 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         }
 
         let explanation = NSTextField(
-            wrappingLabelWithString: "Recompose uses the earliest Icon Composer document version that can represent all of this icon’s features. This prevents omitted material properties from falling back to their default values, which could alter the intended appearance."
+            wrappingLabelWithString: "Recompose uses the earliest Icon Composer document version that can represent all of this icon’s features. This prevents missing properties from falling back to their default values, which could alter the intended appearance."
         )
         explanation.font = NSFont.preferredFont(forTextStyle: .body)
         explanation.textColor = .labelColor
