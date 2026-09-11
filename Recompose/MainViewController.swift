@@ -1,6 +1,55 @@
 import AppKit
 import UniformTypeIdentifiers
 
+private final class HoverRevealView: NSView {
+    weak var revealedView: NSView? {
+        didSet {
+            revealedView?.isHidden = false
+            revealedView?.alphaValue = 0
+        }
+    }
+    private var hoverTrackingArea: NSTrackingArea?
+    private let fadeDuration: TimeInterval = 0.2
+
+    override func updateTrackingAreas() {
+        if let hoverTrackingArea {
+            removeTrackingArea(hoverTrackingArea)
+        }
+        let newTrackingArea = NSTrackingArea(
+            rect: bounds,
+            options: [.mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect],
+            owner: self,
+            userInfo: nil
+        )
+        addTrackingArea(newTrackingArea)
+        hoverTrackingArea = newTrackingArea
+        super.updateTrackingAreas()
+    }
+
+    override func mouseEntered(with event: NSEvent) {
+        setRevealed(true)
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        setRevealed(false)
+    }
+
+    private func setRevealed(_ isRevealed: Bool) {
+        guard let revealedView else { return }
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = fadeDuration
+            revealedView.animator().alphaValue = isRevealed ? 1 : 0
+        }
+    }
+}
+
+private final class CircularShadowView: NSView {
+    override func layout() {
+        super.layout()
+        layer?.shadowPath = CGPath(ellipseIn: bounds, transform: nil)
+    }
+}
+
 final class MainViewController: NSViewController, DropZoneViewDelegate {
     private enum State: Equatable {
         case resting
@@ -47,6 +96,9 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         static let previewSize: CGFloat = 256
         static let previewButtonSpacing: CGFloat = 12
         static let previewAppearanceSegmentWidth: CGFloat = 40
+        static let previewClearButtonSize: CGFloat = 40
+        static let previewClearButtonTrailingInset: CGFloat = 18
+        static let previewClearButtonTopInset: CGFloat = 18
     }
 
     private enum Typography {
@@ -55,6 +107,7 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         static let dropPromptKerning: CGFloat = 0.2
         static let errorTitleLineHeight: CGFloat = 28
         static let previewAppearanceSymbolPointSize: CGFloat = 13
+        static let previewClearSymbolPointSize: CGFloat = 18
     }
 
     private let leftPaneView = NSView()
@@ -714,11 +767,20 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
 
     private func makeSuccessPreviewView() -> NSView {
         let container = NSView()
+        let previewContainer = HoverRevealView()
 
         let preview = NSBox()
         preview.boxType = .custom
         preview.borderWidth = 0
         preview.fillColor = .clear
+        preview.translatesAutoresizingMaskIntoConstraints = false
+        previewContainer.addSubview(preview)
+        NSLayoutConstraint.activate([
+            preview.leadingAnchor.constraint(equalTo: previewContainer.leadingAnchor),
+            preview.trailingAnchor.constraint(equalTo: previewContainer.trailingAnchor),
+            preview.topAnchor.constraint(equalTo: previewContainer.topAnchor),
+            preview.bottomAnchor.constraint(equalTo: previewContainer.bottomAnchor)
+        ])
 
         let output = selectedIconName.flatMap { outputs[$0] }
         let previewURL = output?.previewURLs[selectedPreviewAppearance]
@@ -737,11 +799,57 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
             imageView.bottomAnchor.constraint(equalTo: preview.bottomAnchor)
         ])
 
-        let clearButton = NSButton(title: "Clear", target: self, action: #selector(goBack))
-        clearButton.bezelStyle = .rounded
-        clearButton.controlSize = .large
+        let clearSymbolConfiguration = NSImage.SymbolConfiguration(
+            pointSize: Typography.previewClearSymbolPointSize,
+            weight: .semibold
+        )
+        let clearImage = NSImage(systemSymbolName: "xmark", accessibilityDescription: "Clear")?
+            .withSymbolConfiguration(clearSymbolConfiguration) ?? NSImage()
+        let clearButton = NSButton(image: clearImage, target: self, action: #selector(goBack))
+        clearButton.isBordered = false
+        clearButton.imagePosition = .imageOnly
+        clearButton.contentTintColor = .labelColor
+        clearButton.setAccessibilityLabel("Clear")
+        clearButton.toolTip = "Clear"
 
-        var arrangedViews: [NSView] = [clearButton, preview]
+        let clearGlass = NSGlassEffectView()
+        clearGlass.style = .regular
+        clearGlass.cornerRadius = Layout.previewClearButtonSize / 2
+        if #available(macOS 27.0, *) {
+            clearGlass.effectIsInteractive = true
+        }
+        clearGlass.contentView = clearButton
+        clearGlass.translatesAutoresizingMaskIntoConstraints = false
+
+        let clearShadow = CircularShadowView()
+        clearShadow.isHidden = true
+        clearShadow.translatesAutoresizingMaskIntoConstraints = false
+        clearShadow.wantsLayer = true
+        clearShadow.layer?.shadowColor = NSColor.black.cgColor
+        clearShadow.layer?.shadowOpacity = 0.15
+        clearShadow.layer?.shadowRadius = 6
+        clearShadow.layer?.shadowOffset = CGSize(width: 0, height: -5)
+        clearShadow.addSubview(clearGlass)
+        previewContainer.addSubview(clearShadow)
+        previewContainer.revealedView = clearShadow
+        NSLayoutConstraint.activate([
+            clearGlass.leadingAnchor.constraint(equalTo: clearShadow.leadingAnchor),
+            clearGlass.trailingAnchor.constraint(equalTo: clearShadow.trailingAnchor),
+            clearGlass.topAnchor.constraint(equalTo: clearShadow.topAnchor),
+            clearGlass.bottomAnchor.constraint(equalTo: clearShadow.bottomAnchor),
+            clearShadow.widthAnchor.constraint(equalToConstant: Layout.previewClearButtonSize),
+            clearShadow.heightAnchor.constraint(equalToConstant: Layout.previewClearButtonSize),
+            clearShadow.trailingAnchor.constraint(
+                equalTo: previewContainer.trailingAnchor,
+                constant: -Layout.previewClearButtonTrailingInset
+            ),
+            clearShadow.topAnchor.constraint(
+                equalTo: previewContainer.topAnchor,
+                constant: Layout.previewClearButtonTopInset
+            )
+        ])
+
+        var arrangedViews: [NSView] = [previewContainer]
         if let output, output.previewURLs.count > 1 {
             let appearances = IconPreviewAppearance.allCases
             let symbolNames = ["sun.max", "moon", "circle.righthalf.filled"]
@@ -761,6 +869,7 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
             )
             control.controlSize = .large
             control.segmentStyle = .rounded
+            control.selectedSegmentBezelColor = .unemphasizedSelectedContentBackgroundColor
             control.selectedSegment = appearances.firstIndex(of: selectedPreviewAppearance) ?? 0
             for (index, appearance) in appearances.enumerated() {
                 control.setWidth(Layout.previewAppearanceSegmentWidth, forSegment: index)
@@ -776,8 +885,8 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         stack.translatesAutoresizingMaskIntoConstraints = false
         container.addSubview(stack)
         NSLayoutConstraint.activate([
-            preview.widthAnchor.constraint(equalToConstant: Layout.previewSize),
-            preview.heightAnchor.constraint(equalToConstant: Layout.previewSize),
+            previewContainer.widthAnchor.constraint(equalToConstant: Layout.previewSize),
+            previewContainer.heightAnchor.constraint(equalToConstant: Layout.previewSize),
             stack.centerXAnchor.constraint(equalTo: container.centerXAnchor),
             stack.centerYAnchor.constraint(equalTo: container.centerYAnchor)
         ])
