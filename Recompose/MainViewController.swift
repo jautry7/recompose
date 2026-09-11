@@ -201,11 +201,20 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         let didAccess = securityScopeURL.startAccessingSecurityScopedResource()
 
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            let result = Result {
-                try RecompositionEngine.inspect(
-                    catalogURL: catalogURL,
-                    sourceDisplayName: displayName
-                )
+            var catalogIsDirectory: ObjCBool = false
+            let catalogExists = FileManager.default.fileExists(
+                atPath: catalogURL.path,
+                isDirectory: &catalogIsDirectory
+            ) && !catalogIsDirectory.boolValue
+            let result: Result<RecompositionSession, Error>? = if catalogExists {
+                Result {
+                    try RecompositionEngine.inspect(
+                        catalogURL: catalogURL,
+                        sourceDisplayName: displayName
+                    )
+                }
+            } else {
+                nil
             }
             if didAccess {
                 securityScopeURL.stopAccessingSecurityScopedResource()
@@ -213,6 +222,10 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
 
             DispatchQueue.main.async {
                 guard let self else { return }
+                guard let result else {
+                    self.render(.noIcon)
+                    return
+                }
                 switch result {
                 case .success(let session):
                     self.session = session

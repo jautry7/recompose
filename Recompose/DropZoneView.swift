@@ -189,13 +189,6 @@ final class DropZoneView: NSView {
             .appendingPathComponent("Contents", isDirectory: true)
             .appendingPathComponent("Resources", isDirectory: true)
             .appendingPathComponent("Assets.car", isDirectory: false)
-        var catalogIsDirectory: ObjCBool = false
-        guard FileManager.default.fileExists(
-            atPath: catalogURL.path,
-            isDirectory: &catalogIsDirectory
-        ), !catalogIsDirectory.boolValue else {
-            return nil
-        }
         return (catalogURL, url, url.deletingPathExtension().lastPathComponent)
     }
 }
