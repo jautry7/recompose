@@ -6,6 +6,8 @@ Drop in any `.car` file and Recompose will identify the icon stack(s) present in
 
 [Download Recompose](https://github.com/jautry7/recompose/releases/latest)
 
+![screenshot](docs/screenshot.png)
+
 ## How to use
 
 Recompose requires a compiled asset catalog ( `.car` file); you can drop in this file directly, or you can drop in an application bundle and Recompose will identify the `Assets.car` file inside. To locate the standard `Assets.car` file yourself:
