@@ -118,9 +118,9 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
             }
 
             enum Success {
-                static let centerYOffset: CGFloat = 12
-                static let eyebrowSpacing: CGFloat = 12
-                static let titleSpacing: CGFloat = 6
+                static let centerYOffset: CGFloat = 16
+                static let eyebrowSpacing: CGFloat = 14
+                static let titleSpacing: CGFloat = 8
                 static let detailListSpacing: CGFloat = 4
                 static let assetDropdownHorizontalSpacing: CGFloat = 6
                 static let assetDropdownBottomSpacing: CGFloat = 8
@@ -187,7 +187,7 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         static let bodyKerning: CGFloat = 0.12
         static let headlineKerning: CGFloat = 0.18
         static let dropPromptKerning: CGFloat = 0.2
-        static let errorTitleLineHeight: CGFloat = 28
+        static let titleLineHeight: CGFloat = 26
     }
 
     private enum Motion {
@@ -575,7 +575,7 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
             message: "An unknown error occurred and the CAR file could not be processed.",
             spacing: Layout.LeftPane.GenericError.titleSpacing,
             titleLines: 2,
-            titleLineHeight: Typography.errorTitleLineHeight
+            titleLineHeight: Typography.titleLineHeight
         )
 
         let information = NSStackView(views: [status, header])
@@ -616,7 +616,6 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
             message: source.message,
             spacing: Layout.LeftPane.UnsupportedIcon.titleSpacing,
             titleLines: 2,
-            titleLineHeight: Typography.errorTitleLineHeight,
             messageLines: 0
         )
 
@@ -729,6 +728,14 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         textT.addAttribute(
             .kern,
             value: Typography.headlineKerning,
+            range: NSRange(location: 0, length: textT.length)
+        )
+        let titleParagraphStyle = NSMutableParagraphStyle()
+        titleParagraphStyle.minimumLineHeight = Typography.titleLineHeight
+        titleParagraphStyle.maximumLineHeight = Typography.titleLineHeight
+        textT.addAttribute(
+            .paragraphStyle,
+            value: titleParagraphStyle,
             range: NSRange(location: 0, length: textT.length)
         )
         title.attributedStringValue = textT
