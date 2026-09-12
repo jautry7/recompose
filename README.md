@@ -1,6 +1,6 @@
 # Recompose
 
-Recompose is an experimental macOS app that reconstructs an Icon Composer `.icon` document from a compiled macOS asset catalog (`Assets.car` file). Because compilation can discard, transform, or specialize source data, **Recompose cannot perfectly reconstruct the icon document as originally authored.**
+Recompose is an experimental macOS app that reconstructs an Icon Composer `.icon` document for icon stacks found in a compiled macOS asset catalog (`Assets.car` file). Because compilation can discard, transform, or specialize source data, **Recompose cannot perfectly reconstruct the icon document as originally authored.**
 
 Drop in any `.car` file and Recompose will identify the icon stack(s) present in the catalog, recover the underlying layer stack and rendering annotations, and save it as an editable `.icon` document which you can open in Icon Composer.
 
@@ -10,7 +10,7 @@ Drop in any `.car` file and Recompose will identify the icon stack(s) present in
 
 ## How to use
 
-Recompose requires a compiled asset catalog ( `.car` file); you can drop in this file directly, or you can drop in an application bundle and Recompose will identify the `Assets.car` file inside. To locate the standard `Assets.car` file yourself:
+Recompose requires a compiled asset catalog ( `.car` file); you can drop this file into Recompose directly, or you can drop in an application bundle and Recompose will identify the `Assets.car` file inside. To locate the standard `Assets.car` file yourself:
 
 - Right click on an app and select "Show packaged contents"
 - Navigate to `Contents/Resources/Assets.car`
@@ -19,7 +19,10 @@ If multiple icons are present in the catalog, Recompose will offer all `IconImag
 
 Preview the icon in each of the three appearances modes using the toggle in the right-hand panel. This toggle is for preview purposes only; the saved `.icon` document contains the details necessary for rendering all three appearance modes.
 
-Note that not all apps have been updated to use the icon stack system for their icon; if an asset catalog does not contain an icon stack, or if an app doesn't contain an asset catalog at all, Recompose cannot assemble an `.icon` document and will report an error.
+Note that not all apps use the modern stack system for their icon, so Recompose will not work for every app.
+
+- If an asset catalog contains the traditional bitmap icon set that was standard for Mac apps prior to 2025, Recompose will explain that this icon format was found but cannot be reconstructed into an Icon Composer document.
+- If an asset catalog does not contain any app icon, or if an app doesn't contain an asset catalog at all, Recompose will report that no icon was found.
 
 ## Command-line interface
 
@@ -47,5 +50,5 @@ See the [complete command-line reference](docs/cli.md) for details.
 
 ## Notes
 
-- Recompose is not affiliated with or endorsed by Apple; it began as an experiment when I discovered that the flattened renditions of an app's icon stored in `Assets.car` were still being rendered in the Tahoe-era Liquid Glass style, even on macOS Golden Gate 27. This meant the platform offered no static asset of an app's icon in the new Golden Gate-era rendering style. For my own curiosity, I wanted to look into how I could inspect these gorgeous new icons in high resolution... la di da di da, a few Figma explorations and a few million Codex tokens later, and now here we are.
+- Recompose is not affiliated with or endorsed by Apple; it began as an experiment when I discovered that the flattened renditions of an app's icon stored in `Assets.car` were still being rendered in the Tahoe-era Liquid Glass style, even on macOS 27 Golden Gate. This meant the platform offered no static asset of an app's icon in the new Golden Gate-era rendering style. For my own curiosity, I wanted to look into how I could inspect these gorgeous new icons in high resolution... la di da di da, a few Figma explorations and a few million Codex tokens later, and now here we are.
 - Recompose is a hobbyist project made by someone who loves iconography on the Mac, intended for design lovers to inspect and admire the nuanced design details of modern Mac icons. **Please do not use Recompose to plagiarize another developer's icon.**
