@@ -22,6 +22,7 @@ struct RecompositionSession: Sendable {
     let catalogURL: URL
     let workspaceURL: URL
     let sourceDisplayName: String
+    let hasTraditionalBitmapIcon: Bool
 }
 
 struct RecompositionOutput: Sendable {
@@ -41,6 +42,7 @@ enum RecompositionEngine {
         let formatVersion: Int
         let iconStacks: [IconStackRecord]
         let compilerVersion: String?
+        let traditionalBitmapIcons: [String]?
     }
 
     private enum EngineError: LocalizedError {
@@ -90,10 +92,13 @@ enum RecompositionEngine {
             let minimumGenerations = Dictionary(
                 uniqueKeysWithValues: response.iconStacks.map { ($0.name, $0.minimumGeneration) }
             )
+            let traditionalBitmapIcons = response.traditionalBitmapIcons ?? []
             guard response.formatVersion == 1,
                   names.allSatisfy({ !$0.isEmpty }),
                   Set(names).count == names.count,
-                  response.iconStacks.allSatisfy({ $0.minimumGeneration == 26 || $0.minimumGeneration == 27 }) else {
+                  response.iconStacks.allSatisfy({ $0.minimumGeneration == 26 || $0.minimumGeneration == 27 }),
+                  traditionalBitmapIcons.allSatisfy({ !$0.isEmpty }),
+                  Set(traditionalBitmapIcons).count == traditionalBitmapIcons.count else {
                 throw EngineError.invalidListResponse
             }
 
@@ -104,7 +109,8 @@ enum RecompositionEngine {
                 compilerVersion: response.compilerVersion,
                 catalogURL: stagedCatalogURL,
                 workspaceURL: workspaceURL,
-                sourceDisplayName: sourceDisplayName
+                sourceDisplayName: sourceDisplayName,
+                hasTraditionalBitmapIcon: !traditionalBitmapIcons.isEmpty
             )
         } catch {
             try? fileManager.removeItem(at: workspaceURL)

@@ -273,7 +273,7 @@ NSString *RCDiscoverCatalogCompilerVersion(NSString *catalogPath) {
     return [storageVersion substringWithRange:[match rangeAtIndex:1]];
 }
 
-NSArray<NSDictionary *> *RCDiscoverIconStackRecords(NSString *catalogPath, NSError **error) {
+NSDictionary *RCDiscoverCatalogIconRecords(NSString *catalogPath, NSError **error) {
     void *handle = dlopen("/System/Library/PrivateFrameworks/CoreUI.framework/CoreUI", RTLD_NOW | RTLD_LOCAL);
     if (handle == NULL) {
         if (error) {
@@ -304,22 +304,31 @@ NSArray<NSDictionary *> *RCDiscoverIconStackRecords(NSString *catalogPath, NSErr
     }
 
     NSMutableSet<NSString *> *candidates = [NSMutableSet set];
+    NSMutableSet<NSString *> *multisizeCandidates = [NSMutableSet set];
     @try {
         [catalog enumerateNamedLookupsUsingBlock:^(id lookup, BOOL *stop) {
             (void)stop;
             NSString *className = NSStringFromClass([lookup class]);
-            BOOL isCandidate = [className containsString:@"Multisize"] ||
-                               [className containsString:@"IconLayerStack"];
+            BOOL isMultisize = [className containsString:@"Multisize"];
+            BOOL isCandidate = isMultisize || [className containsString:@"IconLayerStack"];
             if (!isCandidate) {
                 return;
             }
 
             RCDiscoveryLookup *typedLookup = lookup;
             if ([lookup respondsToSelector:@selector(name)]) {
-                RCAddCandidate(candidates, [typedLookup name]);
+                NSString *name = [typedLookup name];
+                RCAddCandidate(candidates, name);
+                if (isMultisize) {
+                    RCAddCandidate(multisizeCandidates, name);
+                }
             }
             if ([lookup respondsToSelector:@selector(renditionName)]) {
-                RCAddCandidate(candidates, [typedLookup renditionName]);
+                NSString *renditionName = [typedLookup renditionName];
+                RCAddCandidate(candidates, renditionName);
+                if (isMultisize) {
+                    RCAddCandidate(multisizeCandidates, renditionName);
+                }
             }
         }];
     } @catch (NSException *exception) {
@@ -339,6 +348,7 @@ NSArray<NSDictionary *> *RCDiscoverIconStackRecords(NSString *catalogPath, NSErr
         @[ @"ISAppearanceTintable" ]
     ];
     NSMutableArray<NSDictionary *> *iconRecords = [NSMutableArray array];
+    NSMutableSet<NSString *> *resolvedStackNames = [NSMutableSet set];
     for (NSString *candidate in candidates) {
         BOOL resolved = NO;
         RCIconGeneration generation = RCIconGeneration26;
@@ -387,6 +397,7 @@ NSArray<NSDictionary *> *RCDiscoverIconStackRecords(NSString *catalogPath, NSErr
             return nil;
         }
         if (resolved) {
+            [resolvedStackNames addObject:candidate];
             [iconRecords addObject:@{
                 @"name": candidate,
                 @"minimumGeneration": @(generation)
@@ -400,8 +411,22 @@ NSArray<NSDictionary *> *RCDiscoverIconStackRecords(NSString *catalogPath, NSErr
         NSComparisonResult insensitive = [leftName caseInsensitiveCompare:rightName];
         return insensitive == NSOrderedSame ? [leftName compare:rightName] : insensitive;
     }];
+
+    [multisizeCandidates minusSet:resolvedStackNames];
+    NSArray<NSString *> *traditionalBitmapIcons = [multisizeCandidates.allObjects
+        sortedArrayUsingComparator:^NSComparisonResult(NSString *left, NSString *right) {
+            NSComparisonResult insensitive = [left caseInsensitiveCompare:right];
+            return insensitive == NSOrderedSame ? [left compare:right] : insensitive;
+        }];
     dlclose(handle);
-    return iconRecords;
+    return @{
+        @"iconStacks": iconRecords,
+        @"traditionalBitmapIcons": traditionalBitmapIcons
+    };
+}
+
+NSArray<NSDictionary *> *RCDiscoverIconStackRecords(NSString *catalogPath, NSError **error) {
+    return RCDiscoverCatalogIconRecords(catalogPath, error)[@"iconStacks"];
 }
 
 NSArray<NSString *> *RCDiscoverIconStackNames(NSString *catalogPath, NSError **error) {

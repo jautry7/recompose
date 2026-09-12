@@ -59,11 +59,25 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         var message: String {
             switch self {
             case .assetCatalog:
-                "This asset catalog does not appear to contain an IconImageStack"
+                "This asset catalog does not appear to contain an app icon."
             case .appMissingAssetCatalog:
-                "This app does not appear to contain an asset catalog"
+                "This app does not appear to contain an asset catalog."
             case .appAssetCatalog:
-                "This app's asset catalog does not appear to contain an IconImageStack"
+                "This app's asset catalog does not appear to contain an app icon."
+            }
+        }
+    }
+
+    private enum TraditionalBitmapIconSource: Equatable {
+        case assetCatalog
+        case app
+
+        var message: String {
+            switch self {
+            case .assetCatalog:
+                "This asset catalog contains an older bitmap icon set. Recompose can only reconstruct Liquid Glass icon stacks created with Icon Composer."
+            case .app:
+                "This app uses an older bitmap icon set. Recompose can only reconstruct Liquid Glass icon stacks created with Icon Composer."
             }
         }
     }
@@ -73,53 +87,107 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         case hovering
         case processing
         case noIcon(NoIconReason)
+        case traditionalBitmapIcon(TraditionalBitmapIconSource)
         case singleIcon(String)
         case multipleIcons([String])
         case failure
     }
 
     private enum Layout {
-        static let assetLabelToDropdownSpacing: CGFloat = 6
+        /* You're not supposed to design for pixel perfection anymore, but
+           screw it, I wanna make the UI perfect.
+         
+           These enums enable optical tweaks across the UI due to things
+           like differing copy length and content size preventing universal
+           spacing from looking correct in every context.
+         
+           Thanks, Codex, for indulging me.
+         */
+        
         static let paneWidth: CGFloat = 350
-        static let leftContentLeadingPadding: CGFloat = 48
-        static let leftContentTrailingPadding: CGFloat = 64
-        static let introSpacing: CGFloat = 4
-        static let introCenterYOffset: CGFloat = -4
-        static let successCenterYOffset: CGFloat = 8
-        static let successEyebrowSpacing: CGFloat = 14
-        static let successTitleSpacing: CGFloat = 8
-        static let successDetailSpacing: CGFloat = 5
-        static let assetSelectionBottomSpacing: CGFloat = 8
-        static let successButtonSpacing: CGFloat = 32
-        static let documentHelpSize: CGFloat = 16
-        static let documentHelpYOffset: CGFloat = 0.5
-        static let errorCenterYOffset: CGFloat = 12
-        static let errorButtonSpacing: CGFloat = 32
-        static let errorButtonHorizontalSpacing: CGFloat = 10
-        static let errorEyebrowSpacing: CGFloat = 12
-        static let errorTitleSpacing: CGFloat = 8
-        static let noIconCenterYOffset: CGFloat = 16
-        static let noIconButtonSpacing: CGFloat = 32
-        static let noIconSymbolPointSize: CGFloat = 32
-        static let noIconSymbolLayoutWidth: CGFloat = 30
-        static let noIconSymbolSpacing: CGFloat = 16
-        static let noIconTitleSpacing: CGFloat = 4
-        static let eyebrowIconSpacing: CGFloat = 3
-        static let previewSize: CGFloat = 256
-        static let previewButtonSpacing: CGFloat = 16
-        static let previewAppearanceSegmentWidth: CGFloat = 40
-        static let previewClearButtonSize: CGFloat = 36
-        static let previewClearButtonTrailingInset: CGFloat = 20
-        static let previewClearButtonTopInset: CGFloat = 20
+
+        enum LeftPane {
+            static let leadingPadding: CGFloat = 48
+            static let trailingPadding: CGFloat = 64
+            static let eyebrowSymbolPointSize: CGFloat = 13
+            static let eyebrowSymbolSpacing: CGFloat = 3
+
+            enum Intro {
+                static let centerYOffset: CGFloat = -4
+                static let titleSpacing: CGFloat = 6
+            }
+
+            enum Success {
+                static let centerYOffset: CGFloat = 12
+                static let eyebrowSpacing: CGFloat = 12
+                static let titleSpacing: CGFloat = 6
+                static let detailListSpacing: CGFloat = 4
+                static let assetDropdownHorizontalSpacing: CGFloat = 6
+                static let assetDropdownBottomSpacing: CGFloat = 8
+                static let buttonSpacing: CGFloat = 32
+                static let documentToolTipSize: CGFloat = 16
+                static let documentToolTipYOffset: CGFloat = 0.5
+                static let documentToolTipSymbolPointSize: CGFloat = 13
+            }
+
+            enum GenericError {
+                static let centerYOffset: CGFloat = 16
+                static let eyebrowSpacing: CGFloat = 12
+                static let titleSpacing: CGFloat = 6
+                static let buttonSpacing: CGFloat = 32
+                static let buttonRowSpacing: CGFloat = 10
+            }
+
+            enum UnsupportedIcon {
+                static let centerYOffset: CGFloat = 20
+                static let eyebrowSpacing: CGFloat = 12
+                static let titleSpacing: CGFloat = 6
+                static let buttonSpacing: CGFloat = 32
+            }
+
+            enum NoIcon {
+                static let centerYOffset: CGFloat = 16
+                static let xSymbolPointSize: CGFloat = 32
+                static let xSymbolLayoutWidth: CGFloat = 30
+                static let xSymbolSpacing: CGFloat = 18
+                static let titleSpacing: CGFloat = 4
+                static let buttonSpacing: CGFloat = 32
+            }
+        }
+
+        enum RightPane {
+            enum DropZone {
+                static let centerYOffset: CGFloat = -12
+                static let symbolPointSize: CGFloat = 112
+                static let symbolFrameSize: CGFloat = 144
+                static let stackSpacing: CGFloat = 8
+            }
+
+            enum Processing {
+                static let centerYOffset: CGFloat = -8
+                static let spinnerSize: CGFloat = 32
+                static let stackSpacing: CGFloat = 16
+            }
+
+            enum Preview {
+                static let centerYOffset: CGFloat = 0
+                static let areaSize: CGFloat = 256
+                static let stackSpacing: CGFloat = 16
+                static let appearanceSegmentWidth: CGFloat = 40
+                static let appearanceSymbolPointSize: CGFloat = 13
+                static let clearButtonSize: CGFloat = 36
+                static let clearButtonSymbolPointSize: CGFloat = 17
+                static let previewClearButtonFromRight: CGFloat = 20
+                static let previewClearButtonFromTop: CGFloat = 20
+            }
+        }
     }
 
     private enum Typography {
-        static let bodyKerning: CGFloat = 0.1
-        static let headlineKerning: CGFloat = 0.2
+        static let bodyKerning: CGFloat = 0.12
+        static let headlineKerning: CGFloat = 0.18
         static let dropPromptKerning: CGFloat = 0.2
         static let errorTitleLineHeight: CGFloat = 28
-        static let previewAppearanceSymbolPointSize: CGFloat = 13
-        static let previewClearSymbolPointSize: CGFloat = 17
     }
 
     private enum Motion {
@@ -260,7 +328,11 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
     private func present(_ session: RecompositionSession, sourceIsApp: Bool) {
         switch session.iconNames.count {
         case 0:
-            render(.noIcon(sourceIsApp ? .appAssetCatalog : .assetCatalog))
+            if session.hasTraditionalBitmapIcon {
+                render(.traditionalBitmapIcon(sourceIsApp ? .app : .assetCatalog))
+            } else {
+                render(.noIcon(sourceIsApp ? .appAssetCatalog : .assetCatalog))
+            }
         case 1:
             let name = session.iconNames[0]
             selectedIconName = name
@@ -337,7 +409,7 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
             replacement = makeDropPrompt(isHovering: true)
         case .processing:
             replacement = makeProcessingView()
-        case .noIcon:
+        case .noIcon, .traditionalBitmapIcon:
             replacement = makeDropPrompt(isHovering: false)
         case .singleIcon:
             replacement = makeSuccessPreviewView()
@@ -364,7 +436,7 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         switch state {
         case .resting, .hovering, .processing:
             let title = makePreferredLabel(
-                "Recompose",
+                "Welcome",
                 textStyle: .largeTitle,
                 emphasized: true,
                 color: .labelColor
@@ -379,12 +451,12 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
             title.attributedStringValue = text
 
             let description = makePreferredLabel(
-                "Reconstruct an Icon Composer document for any app icon.",
+                "Reconstruct any Liquid Glass app icon as an Icon Composer document.",
                 textStyle: .body,
                 color: .secondaryLabelColor
             )
             description.alignment = .left
-            description.maximumNumberOfLines = 2
+            description.maximumNumberOfLines = 3
             description.lineBreakMode = .byWordWrapping
             let textD = NSMutableAttributedString(attributedString: description.attributedStringValue)
             textD.addAttribute(
@@ -397,29 +469,34 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
             let stack = NSStackView(views: [title, description])
             stack.orientation = .vertical
             stack.alignment = .leading
-            stack.spacing = Layout.introSpacing
+            stack.spacing = Layout.LeftPane.Intro.titleSpacing
             description.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
-            installLeftContent(stack, centerYOffset: Layout.introCenterYOffset)
+            installLeftContent(stack, centerYOffset: Layout.LeftPane.Intro.centerYOffset)
         case .singleIcon(let name):
             installLeftContent(
                 makeSuccessContent(assetName: name, names: nil),
-                centerYOffset: Layout.successCenterYOffset
+                centerYOffset: Layout.LeftPane.Success.centerYOffset
             )
         case .multipleIcons(let names):
             let selectedName = selectedIconName ?? names[0]
             installLeftContent(
                 makeSuccessContent(assetName: selectedName, names: names),
-                centerYOffset: Layout.successCenterYOffset
+                centerYOffset: Layout.LeftPane.Success.centerYOffset
             )
         case .noIcon(let reason):
             installLeftContent(
                 makeNoIconContent(reason: reason),
-                centerYOffset: Layout.noIconCenterYOffset
+                centerYOffset: Layout.LeftPane.NoIcon.centerYOffset
+            )
+        case .traditionalBitmapIcon(let source):
+            installLeftContent(
+                makeTraditionalBitmapIconContent(source: source),
+                centerYOffset: Layout.LeftPane.UnsupportedIcon.centerYOffset
             )
         case .failure:
             installLeftContent(
                 makeGenericErrorContent(),
-                centerYOffset: Layout.errorCenterYOffset
+                centerYOffset: Layout.LeftPane.GenericError.centerYOffset
             )
         }
     }
@@ -430,11 +507,11 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         NSLayoutConstraint.activate([
             content.leadingAnchor.constraint(
                 equalTo: leftPaneView.leadingAnchor,
-                constant: Layout.leftContentLeadingPadding
+                constant: Layout.LeftPane.leadingPadding
             ),
             content.trailingAnchor.constraint(
                 equalTo: leftPaneView.trailingAnchor,
-                constant: -Layout.leftContentTrailingPadding
+                constant: -Layout.LeftPane.trailingPadding
             ),
             content.centerYAnchor.constraint(
                 equalTo: leftPaneView.centerYAnchor,
@@ -447,7 +524,7 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
     private func makeNoIconContent(reason: NoIconReason) -> NSView {
         let symbol = makeSymbolView(
             named: "xmark.circle",
-            pointSize: Layout.noIconSymbolPointSize,
+            pointSize: Layout.LeftPane.NoIcon.xSymbolPointSize,
             weight: .light,
             color: .tertiaryLabelColor,
             accessibilityDescription: "No icon found"
@@ -457,7 +534,7 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         symbolContainer.addSubview(symbol)
         NSLayoutConstraint.activate([
             symbolContainer.widthAnchor.constraint(
-                equalToConstant: Layout.noIconSymbolLayoutWidth
+                equalToConstant: Layout.LeftPane.NoIcon.xSymbolLayoutWidth
             ),
             symbol.centerXAnchor.constraint(equalTo: symbolContainer.centerXAnchor),
             symbol.topAnchor.constraint(equalTo: symbolContainer.topAnchor),
@@ -466,14 +543,14 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         let header = makeErrorHeader(
             title: "No icon found",
             message: reason.message,
-            spacing: Layout.noIconTitleSpacing,
+            spacing: Layout.LeftPane.NoIcon.titleSpacing,
             titleLines: 1
         )
 
         let information = NSStackView(views: [symbolContainer, header])
         information.orientation = .vertical
         information.alignment = .leading
-        information.spacing = Layout.noIconSymbolSpacing
+        information.spacing = Layout.LeftPane.NoIcon.xSymbolSpacing
 
         let okayButton = NSButton(title: "OK", target: self, action: #selector(goBack))
         configureButton(okayButton)
@@ -481,7 +558,7 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         let content = NSStackView(views: [information, okayButton])
         content.orientation = .vertical
         content.alignment = .leading
-        content.spacing = Layout.noIconButtonSpacing
+        content.spacing = Layout.LeftPane.NoIcon.buttonSpacing
         information.widthAnchor.constraint(equalTo: content.widthAnchor).isActive = true
         header.widthAnchor.constraint(equalTo: information.widthAnchor).isActive = true
         return content
@@ -496,7 +573,7 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         let header = makeErrorHeader(
             title: "Could not process asset catalog",
             message: "An unknown error occurred and the CAR file could not be processed.",
-            spacing: Layout.errorTitleSpacing,
+            spacing: Layout.LeftPane.GenericError.titleSpacing,
             titleLines: 2,
             titleLineHeight: Typography.errorTitleLineHeight
         )
@@ -504,7 +581,7 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         let information = NSStackView(views: [status, header])
         information.orientation = .vertical
         information.alignment = .leading
-        information.spacing = Layout.errorEyebrowSpacing
+        information.spacing = Layout.LeftPane.GenericError.eyebrowSpacing
 
         let okayButton = NSButton(title: "OK", target: self, action: #selector(goBack))
         configureButton(okayButton)
@@ -517,12 +594,44 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         let actions = NSStackView(views: [okayButton, copyButton])
         actions.orientation = .horizontal
         actions.alignment = .centerY
-        actions.spacing = Layout.errorButtonHorizontalSpacing
+        actions.spacing = Layout.LeftPane.GenericError.buttonRowSpacing
 
         let content = NSStackView(views: [information, actions])
         content.orientation = .vertical
         content.alignment = .leading
-        content.spacing = Layout.errorButtonSpacing
+        content.spacing = Layout.LeftPane.GenericError.buttonSpacing
+        information.widthAnchor.constraint(equalTo: content.widthAnchor).isActive = true
+        header.widthAnchor.constraint(equalTo: information.widthAnchor).isActive = true
+        return content
+    }
+
+    private func makeTraditionalBitmapIconContent(source: TraditionalBitmapIconSource) -> NSView {
+        let status = makeStatusView(
+            "Old icon identified",
+            symbolName: "exclamationmark.circle",
+            color: .systemOrange
+        )
+        let header = makeErrorHeader(
+            title: "Icon not supported",
+            message: source.message,
+            spacing: Layout.LeftPane.UnsupportedIcon.titleSpacing,
+            titleLines: 2,
+            titleLineHeight: Typography.errorTitleLineHeight,
+            messageLines: 0
+        )
+
+        let information = NSStackView(views: [status, header])
+        information.orientation = .vertical
+        information.alignment = .leading
+        information.spacing = Layout.LeftPane.UnsupportedIcon.eyebrowSpacing
+
+        let okayButton = NSButton(title: "OK", target: self, action: #selector(goBack))
+        configureButton(okayButton)
+
+        let content = NSStackView(views: [information, okayButton])
+        content.orientation = .vertical
+        content.alignment = .leading
+        content.spacing = Layout.LeftPane.UnsupportedIcon.buttonSpacing
         information.widthAnchor.constraint(equalTo: content.widthAnchor).isActive = true
         header.widthAnchor.constraint(equalTo: information.widthAnchor).isActive = true
         return content
@@ -547,7 +656,8 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         message: String,
         spacing: CGFloat,
         titleLines: Int,
-        titleLineHeight: CGFloat? = nil
+        titleLineHeight: CGFloat? = nil,
+        messageLines: Int = 2
     ) -> NSView {
         let titleLabel = makePreferredLabel(
             title,
@@ -582,7 +692,7 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
             color: .secondaryLabelColor
         )
         messageLabel.alignment = .left
-        messageLabel.maximumNumberOfLines = 2
+        messageLabel.maximumNumberOfLines = messageLines
         messageLabel.lineBreakMode = .byWordWrapping
         let messageText = NSMutableAttributedString(attributedString: messageLabel.attributedStringValue)
         messageText.addAttribute(
@@ -626,12 +736,12 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         let details = NSStackView()
         details.orientation = .vertical
         details.alignment = .leading
-        details.spacing = Layout.successDetailSpacing
+        details.spacing = Layout.LeftPane.Success.detailListSpacing
 
         if let names {
             let selectionRow = makeAssetSelectionRow(names: names)
             details.addArrangedSubview(selectionRow)
-            details.setCustomSpacing(Layout.assetSelectionBottomSpacing, after: selectionRow)
+            details.setCustomSpacing(Layout.LeftPane.Success.assetDropdownBottomSpacing, after: selectionRow)
         } else {
             details.addArrangedSubview(
                 makeDetailLabel(prefix: "Asset name:", value: assetName)
@@ -650,12 +760,12 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         let titleAndDetails = NSStackView(views: [title, details])
         titleAndDetails.orientation = .vertical
         titleAndDetails.alignment = .leading
-        titleAndDetails.spacing = Layout.successTitleSpacing
+        titleAndDetails.spacing = Layout.LeftPane.Success.titleSpacing
 
         let information = NSStackView(views: [status, titleAndDetails])
         information.orientation = .vertical
         information.alignment = .leading
-        information.spacing = Layout.successEyebrowSpacing
+        information.spacing = Layout.LeftPane.Success.eyebrowSpacing
 
         let saveButton = NSButton(title: "Save Icon", target: self, action: #selector(saveIcon))
         configureButton(saveButton)
@@ -665,7 +775,7 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         let content = NSStackView(views: [information, saveButton])
         content.orientation = .vertical
         content.alignment = .leading
-        content.spacing = Layout.successButtonSpacing
+        content.spacing = Layout.LeftPane.Success.buttonSpacing
         title.widthAnchor.constraint(equalTo: content.widthAnchor).isActive = true
         return content
     }
@@ -677,7 +787,7 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
     ) -> NSView {
         let symbol = makeSymbolView(
             named: symbolName,
-            pointSize: 13,
+            pointSize: Layout.LeftPane.eyebrowSymbolPointSize,
             weight: .semibold,
             color: color,
             accessibilityDescription: text
@@ -700,7 +810,7 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         let row = NSStackView(views: [symbol, label])
         row.orientation = .horizontal
         row.alignment = .centerY
-        row.spacing = Layout.eyebrowIconSpacing
+        row.spacing = Layout.LeftPane.eyebrowSymbolSpacing
         return row
     }
 
@@ -725,7 +835,7 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         let row = NSStackView(views: [prompt, popup])
         row.orientation = .vertical
         row.alignment = .leading
-        row.spacing = Layout.assetLabelToDropdownSpacing
+        row.spacing = Layout.LeftPane.Success.assetDropdownHorizontalSpacing
         return row
     }
 
@@ -770,7 +880,7 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
             value: generation.map { "v\($0)" } ?? "—"
         )
         let helpConfiguration = NSImage.SymbolConfiguration(
-            pointSize: 13,
+            pointSize: Layout.LeftPane.Success.documentToolTipSymbolPointSize,
             weight: .medium
         )
         let helpImage = NSImage(
@@ -792,14 +902,14 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         help.translatesAutoresizingMaskIntoConstraints = false
         helpContainer.addSubview(help)
         NSLayoutConstraint.activate([
-            helpContainer.widthAnchor.constraint(equalToConstant: Layout.documentHelpSize),
-            helpContainer.heightAnchor.constraint(equalToConstant: Layout.documentHelpSize),
-            help.widthAnchor.constraint(equalToConstant: Layout.documentHelpSize),
-            help.heightAnchor.constraint(equalToConstant: Layout.documentHelpSize),
+            helpContainer.widthAnchor.constraint(equalToConstant: Layout.LeftPane.Success.documentToolTipSize),
+            helpContainer.heightAnchor.constraint(equalToConstant: Layout.LeftPane.Success.documentToolTipSize),
+            help.widthAnchor.constraint(equalToConstant: Layout.LeftPane.Success.documentToolTipSize),
+            help.heightAnchor.constraint(equalToConstant: Layout.LeftPane.Success.documentToolTipSize),
             help.centerXAnchor.constraint(equalTo: helpContainer.centerXAnchor),
             help.centerYAnchor.constraint(
                 equalTo: helpContainer.centerYAnchor,
-                constant: Layout.documentHelpYOffset
+                constant: Layout.LeftPane.Success.documentToolTipYOffset
             )
         ])
 
@@ -866,7 +976,7 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
             ])
         }
         let clearSymbolConfiguration = NSImage.SymbolConfiguration(
-            pointSize: Typography.previewClearSymbolPointSize,
+            pointSize: Layout.RightPane.Preview.clearButtonSymbolPointSize,
             weight: .semibold
         )
         let clearImage = NSImage(systemSymbolName: "xmark", accessibilityDescription: "Clear")?
@@ -880,7 +990,7 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
 
         let clearGlass = NSGlassEffectView()
         clearGlass.style = .regular
-        clearGlass.cornerRadius = Layout.previewClearButtonSize / 2
+        clearGlass.cornerRadius = Layout.RightPane.Preview.clearButtonSize / 2
         if #available(macOS 27.0, *) {
             clearGlass.effectIsInteractive = true
         }
@@ -903,15 +1013,15 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
             clearGlass.trailingAnchor.constraint(equalTo: clearShadow.trailingAnchor),
             clearGlass.topAnchor.constraint(equalTo: clearShadow.topAnchor),
             clearGlass.bottomAnchor.constraint(equalTo: clearShadow.bottomAnchor),
-            clearShadow.widthAnchor.constraint(equalToConstant: Layout.previewClearButtonSize),
-            clearShadow.heightAnchor.constraint(equalToConstant: Layout.previewClearButtonSize),
+            clearShadow.widthAnchor.constraint(equalToConstant: Layout.RightPane.Preview.clearButtonSize),
+            clearShadow.heightAnchor.constraint(equalToConstant: Layout.RightPane.Preview.clearButtonSize),
             clearShadow.trailingAnchor.constraint(
                 equalTo: previewContainer.trailingAnchor,
-                constant: -Layout.previewClearButtonTrailingInset
+                constant: -Layout.RightPane.Preview.previewClearButtonFromRight
             ),
             clearShadow.topAnchor.constraint(
                 equalTo: previewContainer.topAnchor,
-                constant: Layout.previewClearButtonTopInset
+                constant: Layout.RightPane.Preview.previewClearButtonFromTop
             )
         ])
 
@@ -929,7 +1039,7 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
             let appearances = IconPreviewAppearance.allCases
             let symbolNames = ["sun.max", "moon", "circle.righthalf.filled"]
             let symbolConfiguration = NSImage.SymbolConfiguration(
-                pointSize: Typography.previewAppearanceSymbolPointSize,
+                pointSize: Layout.RightPane.Preview.appearanceSymbolPointSize,
                 weight: .semibold
             )
             let images = symbolNames.map {
@@ -947,7 +1057,7 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
             control.selectedSegmentBezelColor = .unemphasizedSelectedContentBackgroundColor
             control.selectedSegment = appearances.firstIndex(of: selectedPreviewAppearance) ?? 0
             for (index, appearance) in appearances.enumerated() {
-                control.setWidth(Layout.previewAppearanceSegmentWidth, forSegment: index)
+                control.setWidth(Layout.RightPane.Preview.appearanceSegmentWidth, forSegment: index)
                 control.setToolTip(appearance.displayName, forSegment: index)
                 control.setEnabled(availablePreviewAppearances.contains(appearance), forSegment: index)
             }
@@ -959,14 +1069,17 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         let stack = NSStackView(views: arrangedViews)
         stack.orientation = .vertical
         stack.alignment = .centerX
-        stack.spacing = Layout.previewButtonSpacing
+        stack.spacing = Layout.RightPane.Preview.stackSpacing
         stack.translatesAutoresizingMaskIntoConstraints = false
         container.addSubview(stack)
         NSLayoutConstraint.activate([
-            previewContainer.widthAnchor.constraint(equalToConstant: Layout.previewSize),
-            previewContainer.heightAnchor.constraint(equalToConstant: Layout.previewSize),
+            previewContainer.widthAnchor.constraint(equalToConstant: Layout.RightPane.Preview.areaSize),
+            previewContainer.heightAnchor.constraint(equalToConstant: Layout.RightPane.Preview.areaSize),
             stack.centerXAnchor.constraint(equalTo: container.centerXAnchor),
-            stack.centerYAnchor.constraint(equalTo: container.centerYAnchor)
+            stack.centerYAnchor.constraint(
+                equalTo: container.centerYAnchor,
+                constant: Layout.RightPane.Preview.centerYOffset
+            )
         ])
         if shouldAnimatePreview, let imageView {
             animatePreviewEntrance(
@@ -1072,7 +1185,7 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         }
         let symbol = makeSymbolView(
             named: symbolName,
-            pointSize: 112,
+            pointSize: Layout.RightPane.DropZone.symbolPointSize,
             weight: .ultraLight,
             color: isHovering ? .controlAccentColor : .tertiaryLabelColor,
             accessibilityDescription: isHovering ? "Ready to drop" : "Drop zone"
@@ -1095,15 +1208,18 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         let stack = NSStackView(views: [symbol, label])
         stack.orientation = .vertical
         stack.alignment = .centerX
-        stack.spacing = 8
+        stack.spacing = Layout.RightPane.DropZone.stackSpacing
         stack.translatesAutoresizingMaskIntoConstraints = false
         container.addSubview(stack)
 
         NSLayoutConstraint.activate([
-            symbol.widthAnchor.constraint(equalToConstant: 144),
-            symbol.heightAnchor.constraint(equalToConstant: 144),
+            symbol.widthAnchor.constraint(equalToConstant: Layout.RightPane.DropZone.symbolFrameSize),
+            symbol.heightAnchor.constraint(equalToConstant: Layout.RightPane.DropZone.symbolFrameSize),
             stack.centerXAnchor.constraint(equalTo: container.centerXAnchor),
-            stack.centerYAnchor.constraint(equalTo: container.centerYAnchor, constant: -12)
+            stack.centerYAnchor.constraint(
+                equalTo: container.centerYAnchor,
+                constant: Layout.RightPane.DropZone.centerYOffset
+            )
         ])
 
         if !isHovering {
@@ -1129,15 +1245,18 @@ final class MainViewController: NSViewController, DropZoneViewDelegate {
         let stack = NSStackView(views: [spinner, label])
         stack.orientation = .vertical
         stack.alignment = .centerX
-        stack.spacing = 16
+        stack.spacing = Layout.RightPane.Processing.stackSpacing
         stack.translatesAutoresizingMaskIntoConstraints = false
         container.addSubview(stack)
 
         NSLayoutConstraint.activate([
-            spinner.widthAnchor.constraint(equalToConstant: 32),
-            spinner.heightAnchor.constraint(equalToConstant: 32),
+            spinner.widthAnchor.constraint(equalToConstant: Layout.RightPane.Processing.spinnerSize),
+            spinner.heightAnchor.constraint(equalToConstant: Layout.RightPane.Processing.spinnerSize),
             stack.centerXAnchor.constraint(equalTo: container.centerXAnchor),
-            stack.centerYAnchor.constraint(equalTo: container.centerYAnchor, constant: -8)
+            stack.centerYAnchor.constraint(
+                equalTo: container.centerYAnchor,
+                constant: Layout.RightPane.Processing.centerYOffset
+            )
         ])
         return container
     }

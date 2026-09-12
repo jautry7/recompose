@@ -57,9 +57,9 @@ static NSArray<NSString *> *Discover(NSString *catalogPath) {
     return names;
 }
 
-static NSArray<NSDictionary *> *DiscoverRecords(NSString *catalogPath) {
+static NSDictionary *DiscoverCatalogRecords(NSString *catalogPath) {
     NSError *error = nil;
-    NSArray<NSDictionary *> *records = RCDiscoverIconStackRecords(catalogPath, &error);
+    NSDictionary *records = RCDiscoverCatalogIconRecords(catalogPath, &error);
     if (records == nil) {
         fprintf(stderr, "Unable to inspect catalog: %s\n", error.localizedDescription.UTF8String);
     }
@@ -133,14 +133,16 @@ static NSString *ManifestAssetName(NSString *extractionDirectory) {
 }
 
 static int RunList(NSString *catalogPath, BOOL json) {
-    NSArray<NSDictionary *> *records = DiscoverRecords(catalogPath);
-    if (records == nil) {
+    NSDictionary *catalogRecords = DiscoverCatalogRecords(catalogPath);
+    if (catalogRecords == nil) {
         return 1;
     }
+    NSArray<NSDictionary *> *records = catalogRecords[@"iconStacks"];
     if (json) {
         NSMutableDictionary *response = [@{
             @"formatVersion": @1,
-            @"iconStacks": records
+            @"iconStacks": records,
+            @"traditionalBitmapIcons": catalogRecords[@"traditionalBitmapIcons"]
         } mutableCopy];
         NSString *compilerVersion = RCDiscoverCatalogCompilerVersion(catalogPath);
         if (compilerVersion.length > 0) {
